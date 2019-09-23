@@ -4,6 +4,11 @@ namespace App;
 
 class PhpServer
 {
+    const PHP_VERSIONS = ['7.0', '7.1', '7.2', '7.3'];
+
+    /**
+     * @var string
+     */
     protected static $configFile = "/usr/local/etc/php/%s/php.ini";
 
     /**
@@ -11,7 +16,7 @@ class PhpServer
      */
     public function version()
     {
-        preg_match("/^(PHP) ([\.\d]+)/i", shell_exec("php -v"), $matches);
+        preg_match("/^(PHP) ([\.\d]+)/i", shell_exec('php -v'), $matches);
 
         return last($matches);
     }
@@ -31,7 +36,27 @@ class PhpServer
      */
     public function restart()
     {
-        shell_exec("brew services restart php@{$this->shortVersion()}");
+        Shell::cmd("brew services restart php@{$this->shortVersion()}");
+
+        return $this;
+    }
+
+    /**
+     * @return self
+     */
+    public function stop()
+    {
+        Shell::cmd("brew services stop php@{$this->shortVersion()}");
+
+        return $this;
+    }
+
+    /**
+     * @return self
+     */
+    public function start()
+    {
+        Shell::cmd("brew services start php@{$this->shortVersion()}");
 
         return $this;
     }
@@ -51,5 +76,25 @@ class PhpServer
     public function config()
     {
         return new PhpConfig($this);
+    }
+
+    /**
+     * @param string $version
+     *
+     * @return \App\PhpServer
+     */
+    public function useVersion(string $version)
+    {
+        if (!in_array($version, self::PHP_VERSIONS)) {
+            return $this;
+        }
+
+        $this->stop();
+
+        Shell::cmd("brew unlink php@{$this->shortVersion()} && brew link php@$version --force");
+
+        $this->start();
+
+        return $this;
     }
 }
