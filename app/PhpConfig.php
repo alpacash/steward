@@ -2,7 +2,11 @@
 
 namespace App;
 
-class PhpConfig
+use App\Contract\ConfigContract;
+use App\Exceptions\ConfigFileCorruptException;
+use App\Exceptions\ConfigFileMissingException;
+
+class PhpConfig implements ConfigContract
 {
 
     /**
@@ -22,22 +26,31 @@ class PhpConfig
 
     /**
      * @param \App\PhpServer $server
-     *
-     * @throws \Exception
      */
-    public function __construct(PhpServer $server) {
+    public function __construct(PhpServer $server)
+    {
         $this->server = $server;
         $this->file = $server->iniFile();
-
-        if (!file_exists($this->file)) {
-            throw new \Exception("File does not exist: {$this->file}");
-        }
-
         $this->contents = \file_get_contents($this->file);
+    }
+
+    /**
+     * @return self
+     *
+     * @throws \App\Exceptions\ConfigFileCorruptException
+     * @throws \App\Exceptions\ConfigFileMissingException
+     */
+    public function verify()
+    {
+        if (!file_exists($this->file)) {
+            throw new ConfigFileMissingException($this->file);
+        }
 
         if (empty($this->contents)) {
-            throw new \Exception("File seems corrupt: {$this->file}");
+            throw new ConfigFileCorruptException($this->file);
         }
+
+        return $this;
     }
 
     /**
@@ -45,7 +58,7 @@ class PhpConfig
      *
      * @return self
      */
-    public function write()
+    public function save(): ConfigContract
     {
         file_put_contents($this->file, $this->contents);
 
@@ -60,7 +73,7 @@ class PhpConfig
      */
     public function replace(string $search, string $replace)
     {
-        $this->contents  = preg_replace($search, $replace, $this->contents);
+        $this->contents = preg_replace($search, $replace, $this->contents);
 
         return $this;
     }
@@ -72,7 +85,7 @@ class PhpConfig
      */
     public function has(string $pattern)
     {
-        return (bool) preg_match($pattern, $this->contents());
+        return (bool)preg_match($pattern, $this->contents());
     }
 
     /**
@@ -81,5 +94,25 @@ class PhpConfig
     public function contents()
     {
         return $this->contents;
+    }
+
+    public function raw()
+    {
+        return $this->contents;
+    }
+
+    public function matches(string $key, string $value)
+    {
+        // TODO: Implement matches() method.
+    }
+
+    public function get(string $key)
+    {
+        // TODO: Implement get() method.
+    }
+
+    public function set(string $key, string $value)
+    {
+        // TODO: Implement set() method.
     }
 }

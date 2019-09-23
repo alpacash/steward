@@ -13,7 +13,7 @@ class XdebugDisableCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'xdebug:disable';
+    protected $signature = 'xdebug:disable {--restart}';
 
     /**
      * The description of the command.
@@ -40,8 +40,11 @@ class XdebugDisableCommand extends Command
         }
 
         $xdebug->disable();
-//        $server->restart();
+        $this->output->success("[OFF] XDebug is now disabled on php {$server->version()}");
 
-        $this->output->success("Done!");
+        if ($this->option('restart')) {
+            $this->output->note("Restarting php service...");
+            $server->restart();
+        }
     }
 }

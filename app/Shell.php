@@ -2,6 +2,8 @@
 
 namespace App;
 
+use App\Commands\ShellOutput;
+use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Process\Process;
 
 /**
@@ -11,12 +13,14 @@ use Symfony\Component\Process\Process;
 class Shell
 {
     /**
-     * @param string $command
+     * @param string                                                 $command
+     *
+     * @param \Symfony\Component\Console\Output\OutputInterface|null $output
      *
      * @return int
      */
-    public static function cmd(string $command)
+    public static function cmd($command, OutputInterface $output = null)
     {
-        return (new Process([$command]))->run();
+        return Process::fromShellCommandline($command)->run(new ShellOutput($output));
     }
 }

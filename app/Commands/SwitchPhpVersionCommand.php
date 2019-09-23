@@ -2,10 +2,9 @@
 
 namespace App\Commands;
 
-use App\PhpServer;
-use LaravelZero\Framework\Commands\Command;
+use App\Exceptions\InvalidServerVersionException;
 
-class SwitchPhpVersionCommand extends Command
+class SwitchPhpVersionCommand extends StackCommand
 {
     /**
      * The signature of the command.
@@ -24,12 +23,18 @@ class SwitchPhpVersionCommand extends Command
     /**
      * Execute the console command.
      *
-     * @return mixed
+     * @return int
      */
-    public function handle()
+    public function process(): int
     {
-        $server = new PhpServer();
-        $server->useVersion($this->argument('version'));
-        $this->output->success("Done! New PHP version is {$server->version()}");
+        $server = $this->stack->phpServer();
+
+        try {
+            $server->useVersion($this->argument('version'));
+        } catch (InvalidServerVersionException $e) {
+            return $this->fail($e->getMessage());
+        }
+
+        return $this->success("Done! New PHP version is {$server->version()}");
     }
 }

@@ -2,7 +2,11 @@
 
 namespace App;
 
-class PhpServer
+use App\Contract\ConfigContract;
+use App\Contract\ServerContract;
+use App\Exceptions\InvalidServerVersionException;
+
+class PhpServer implements ServerContract
 {
     const PHP_VERSIONS = ['7.0', '7.1', '7.2', '7.3'];
 
@@ -12,9 +16,24 @@ class PhpServer
     protected static $configFile = "/usr/local/etc/php/%s/php.ini";
 
     /**
+     * @var \App\PhpConfig
+     */
+    protected $config;
+
+    /**
+     * PhpServer constructor.
+     *
+     * @throws \App\Exceptions\ConfigFileException
+     */
+    public function __construct()
+    {
+        $this->config = (new PhpConfig($this))->verify();
+    }
+
+    /**
      * @return string
      */
-    public function version()
+    public function version(): string
     {
         preg_match("/^(PHP) ([\.\d]+)/i", shell_exec('php -v'), $matches);
 
@@ -73,20 +92,21 @@ class PhpServer
      * @return \App\PhpConfig
      * @throws \Exception
      */
-    public function config()
+    public function config(): ConfigContract
     {
-        return new PhpConfig($this);
+        return $this->config;
     }
 
     /**
      * @param string $version
      *
      * @return \App\PhpServer
+     * @throws \App\Exceptions\InvalidServerVersionException
      */
     public function useVersion(string $version)
     {
         if (!in_array($version, self::PHP_VERSIONS)) {
-            return $this;
+            throw new InvalidServerVersionException($this, $version);
         }
 
         $this->stop();
@@ -96,5 +116,13 @@ class PhpServer
         $this->start();
 
         return $this;
+    }
+
+    /**
+     * @return string
+     */
+    public function label(): string
+    {
+        return 'php';
     }
 }

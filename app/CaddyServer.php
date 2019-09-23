@@ -2,7 +2,10 @@
 
 namespace App;
 
-class CaddyServer
+use App\Contract\ConfigContract;
+use App\Contract\ServerContract;
+
+class CaddyServer implements ServerContract
 {
     /**
      * @var string
@@ -30,6 +33,11 @@ class CaddyServer
     protected $logFile;
 
     /**
+     * @var \App\CaddyConfig
+     */
+    protected $config;
+
+    /**
      * CaddyServer constructor.
      *
      * @param string $bin
@@ -42,6 +50,7 @@ class CaddyServer
         $this->caddyFile = $this->home . "/Caddyfile";
         $this->pidFile = $this->home . "/caddy.pid";
         $this->logFile = $this->home . "/caddy.log";
+        $this->config = new CaddyConfig($this);
     }
 
     /**
@@ -77,5 +86,29 @@ class CaddyServer
     public function caddyFile(): string
     {
         return $this->caddyFile;
+    }
+
+    /**
+     * @return \App\Contract\ConfigContract
+     */
+    public function config(): ConfigContract
+    {
+        return $this->config;
+    }
+
+    /**
+     * @return string
+     */
+    public function version(): string
+    {
+        return trim(shell_exec("{$this->bin} -version"));
+    }
+
+    /**
+     * @return string
+     */
+    public function label(): string
+    {
+        return 'caddy';
     }
 }

@@ -2,11 +2,7 @@
 
 namespace App\Commands;
 
-use App\CaddyConfig;
-use App\CaddyServer;
-use LaravelZero\Framework\Commands\Command;
-
-class RestartCaddyCommand extends Command
+class RestartCaddyCommand extends StackCommand
 {
     /**
      * The signature of the command.
@@ -27,12 +23,15 @@ class RestartCaddyCommand extends Command
      *
      * @return mixed
      */
-    public function handle()
+    public function process(): int
     {
-        $this->output->success("Restarting caddy http server...");
-        $server = new CaddyServer();
-        (new CaddyConfig($server))->write();
+        $this->output->note("Restarting caddy http server...");
 
-        $server->restart();
+        $this->stack->httpServer()->config()->save();
+        $this->stack->httpServer()->restart();
+
+        $this->output->success("Done!");
+
+        return $this->success();
     }
 }

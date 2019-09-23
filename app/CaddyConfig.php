@@ -2,9 +2,10 @@
 
 namespace App;
 
+use App\Contract\ConfigContract;
 use Illuminate\Support\Str;
 
-class CaddyConfig
+class CaddyConfig implements ConfigContract
 {
     /**
      * @var array
@@ -29,9 +30,9 @@ class CaddyConfig
     }
 
     /**
-     * @return self
+     * @return \App\Contract\ConfigContract
      */
-    public function write()
+    public function save(): ConfigContract
     {
         file_put_contents($this->server->caddyFile(), $this->render());
 
@@ -65,5 +66,39 @@ class CaddyConfig
         }
 
         return implode(PHP_EOL . PHP_EOL, $directives ?? []);
+    }
+
+    /**
+     * @param string $key
+     */
+    public function get(string $key)
+    {
+        // TODO: Implement get() method.
+    }
+
+    /**
+     * @param string $key
+     * @param string $value
+     */
+    public function set(string $key, string $value)
+    {
+        // TODO: Implement set() method.
+    }
+
+    /**
+     * @param string $key
+     */
+    public function has(string $key)
+    {
+        // TODO: Implement has() method.
+    }
+
+    /**
+     * @param string $key
+     * @param string $value
+     */
+    public function matches(string $key, string $value)
+    {
+        // TODO: Implement matches() method.
     }
 }
