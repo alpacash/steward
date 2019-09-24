@@ -14,13 +14,15 @@ class Shell
 {
     /**
      * @param string                                                 $command
-     *
      * @param \Symfony\Component\Console\Output\OutputInterface|null $output
+     * @param int                                                    $timeout
      *
      * @return int
      */
-    public static function cmd($command, OutputInterface $output = null)
+    public static function cmd($command, OutputInterface $output = null, int $timeout = 120)
     {
-        return Process::fromShellCommandline($command)->run(new ShellOutput($output));
+        return Process::fromShellCommandline($command)
+            ->setTimeout($timeout)
+            ->run(new ShellOutput($output));
     }
 }

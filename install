@@ -1,0 +1,7 @@
+#!/bin/bash
+
+rm -f /usr/local/bin/stew
+curl https://stew.sh/steward > /usr/local/bin/stew
+chmod +x /usr/local/bin/stew
+
+/usr/local/bin/stew boot

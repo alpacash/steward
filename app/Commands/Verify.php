@@ -25,7 +25,8 @@ class Verify extends StackCommand
      */
     public function process(): int
     {
-        return $this->success("[Php]: " . $this->stack->phpServer()->version()
+        return $this->success(trim(shell_exec("stew -V"))
+            . " // [Php]: " . $this->stack->phpServer()->version()
             . " // [Caddy]: " . $this->stack->httpServer()->version()
             . " // [Dnsmasq]: " . $this->stack->dnsServer()->version());
     }
