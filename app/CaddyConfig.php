@@ -55,6 +55,7 @@ class CaddyConfig implements ConfigContract
             }
 
             $site = new Site($site);
+            $logfile = StewardConfig::logsHome() . "/{$site->name()}-error.log";
             if ($site->type()['type'] !== 'magento') {
                 $directives[] = "{$site->domainWithPort()} {
     root {$site->root()}
@@ -65,6 +66,8 @@ class CaddyConfig implements ConfigContract
     rewrite {
         to {path} {path}/ /index.php?{query}
     }
+
+    errors {$logfile}
 }";
                 continue;
             }
@@ -120,12 +123,7 @@ class CaddyConfig implements ConfigContract
 
     rewrite {
         r ^/static/(version\d*/)?(.*)$
-        to /static/{2}
-    }
-
-    rewrite {
-        r ^/static/(version\d*/)?(.*)$
-        to /static.php?resource={2}
+        to {path} {path}/ /static.php?resource={2}
     }
 
     header /static X-Frame-Options \"SAMEORIGIN\"
@@ -133,10 +131,12 @@ class CaddyConfig implements ConfigContract
     rewrite {
         to {path} {path}/ /index.php /index.php?{query}
     }
-   
+
     header / {
         X-Content-Type-Options \"nosniff\"
     }
+
+    errors {$logfile}
 }";
         }
 

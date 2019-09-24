@@ -31,6 +31,14 @@ class StewardConfig
     /**
      * @return string
      */
+    public static function logsHome()
+    {
+        return self::home('logs');
+    }
+
+    /**
+     * @return string
+     */
     public static function sitesHome()
     {
         return $_SERVER['HOME'] . "/sites";

@@ -9,16 +9,24 @@ class Site
     /**
      * @var string
      */
-    protected $site;
+    protected $name;
 
     /**
      * Site constructor.
      *
-     * @param string $site
+     * @param string $name
      */
-    public function __construct(string $site)
+    public function __construct(string $name)
     {
-        $this->site = $site;
+        $this->name = $name;
+    }
+
+    /**
+     * @return string
+     */
+    public function name()
+    {
+        return $this->name;
     }
 
     /**
@@ -26,9 +34,9 @@ class Site
      */
     public function domain()
     {
-        return ! Str::endsWith($this->site, ['.io', '.sh', '.dev', '.localhost', '.test'])
-            ? $this->site . "." . StewardConfig::currentTld()
-            : $this->site;
+        return ! Str::endsWith($this->name, ['.io', '.sh', '.dev', '.localhost', '.test'])
+            ? $this->name . "." . StewardConfig::currentTld()
+            : $this->name;
     }
 
     /**
@@ -46,7 +54,7 @@ class Site
     {
         $defaults = ['general' => ['web', 'public'], 'magento' => ['pub']];
 
-        $root = StewardConfig::sitesHome() . "/{$this->site}";
+        $root = StewardConfig::sitesHome() . "/{$this->name}";
         foreach ($defaults as $type => $webroots) {
             foreach ($webroots as $webroot) {
                 $path = "$root/$webroot";
