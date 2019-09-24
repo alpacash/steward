@@ -30,7 +30,9 @@ class SwitchPhpVersionCommand extends StackCommand
         $server = $this->stack->phpServer();
 
         try {
-            $server->useVersion($this->argument('version'));
+            $version = $this->argument('version');
+            $this->output->note("Attempting to switch PHP: {$server->version()} => {$version}");
+            $server->useVersion($version);
         } catch (InvalidServerVersionException $e) {
             return $this->fail($e->getMessage());
         }

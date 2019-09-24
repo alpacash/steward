@@ -111,7 +111,10 @@ class PhpServer implements ServerContract
 
         $this->stop();
 
-        Shell::cmd("brew unlink php@{$this->shortVersion()} && brew link php@$version --force");
+        $link = Shell::cmd("brew unlink php@{$this->shortVersion()} && brew link php@$version --force");
+        if ($link > 0) {
+            throw new InvalidServerVersionException($this, $version);
+        }
 
         $this->start();
 
