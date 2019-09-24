@@ -40,20 +40,30 @@ class Site
     }
 
     /**
+     * @return array
+     */
+    public function type()
+    {
+        $defaults = ['general' => ['web', 'public'], 'magento' => ['pub']];
+
+        $root = StewardConfig::sitesHome() . "/{$this->site}";
+        foreach ($defaults as $type => $webroots) {
+            foreach ($webroots as $webroot) {
+                $path = "$root/$webroot";
+                if (file_exists($path)) {
+                    return ['type' => $type, 'root' => $path];
+                }
+            }
+        }
+
+        return ['type' => 'general', 'root' => $root];
+    }
+
+    /**
      * @return string
      */
     public function root()
     {
-        $webroots = ['public', 'pub', 'web'];
-
-        $root = StewardConfig::sitesHome() . "/{$this->site}";
-        foreach ($webroots as $webroot) {
-            $path = "$root/$webroot";
-            if (file_exists($path)) {
-                return $path;
-            }
-        }
-
-        return $root;
+        return $this->type()['root'];
     }
 }
