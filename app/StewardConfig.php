@@ -44,6 +44,6 @@ class StewardConfig
         $tldFile = self::home() . "/.path";
         touch($tldFile);
 
-        return file_get_contents(self::home() . "/.tld") ?: 'test';
+        return trim(file_get_contents(self::home() . "/.tld") ?: 'test');
     }
 }
