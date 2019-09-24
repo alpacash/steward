@@ -9,14 +9,14 @@ class Verify extends StackCommand
      *
      * @var string
      */
-    protected $signature = 'stack:verify';
+    protected $signature = 'stack:status';
 
     /**
      * The description of the command.
      *
      * @var string
      */
-    protected $description = 'Verify the stack';
+    protected $description = 'Verify the stack status';
 
     /**
      * Execute the console command.
@@ -25,9 +25,6 @@ class Verify extends StackCommand
      */
     public function process(): int
     {
-        return $this->success(trim(shell_exec("stew -V"))
-            . " // [Php]: " . $this->stack->phpServer()->version()
-            . " // [Caddy]: " . $this->stack->httpServer()->version()
-            . " // [Dnsmasq]: " . $this->stack->dnsServer()->version());
+        return $this->status();
     }
 }

@@ -79,5 +79,16 @@ abstract class StackCommand extends Command
     /**
      * @return int
      */
+    protected function status()
+    {
+        return $this->success(trim(shell_exec("stew -V"))
+            . " // [Php]: " . $this->stack->phpServer()->version()
+            . " // [Caddy]: " . $this->stack->httpServer()->version()
+            . " // [Dnsmasq]: " . $this->stack->dnsServer()->version());
+    }
+
+    /**
+     * @return int
+     */
     abstract public function process(): int;
 }

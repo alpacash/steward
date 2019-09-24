@@ -75,8 +75,6 @@ return [
 
     'remove' => collect([\App\Commands\AppDeploy::class])->filter(function() {
         return config('app.production') === true;
-    })->merge(collect([\App\Commands\AppUpdate::class])->filter(function() {
-        return config('app.production') === false;
-    }))->toArray()
+    })->toArray()
 
 ];

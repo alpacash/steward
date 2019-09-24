@@ -34,6 +34,6 @@ class ShellOutput
             return;
         }
 
-        $this->output->writeln($line);
+        $this->output->writeln(trim($line));
     }
 }

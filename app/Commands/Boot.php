@@ -33,7 +33,6 @@ class Boot extends StackCommand
             $server->restart();
         }
 
-        return $this->success("All set and done: PHP {$this->stack->phpServer()->version()},"
-            . " Caddy: {$this->stack->httpServer()->version()}");
+        return $this->status();
     }
 }
