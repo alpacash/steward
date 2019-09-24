@@ -2,6 +2,8 @@
 
 namespace App;
 
+use Illuminate\Support\Str;
+
 class Site
 {
     /**
@@ -24,7 +26,9 @@ class Site
      */
     public function domain()
     {
-        return $this->site . ".test";
+        return ! Str::endsWith($this->site, ['.io', '.sh', '.dev', '.localhost', '.test'])
+            ? $this->site . ".test"
+            : $this->site;
     }
 
     /**

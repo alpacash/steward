@@ -65,7 +65,7 @@ class CaddyServer implements ServerContract
         $chwd = "cd $this->home";
         $startCaddy = "{$this->bin} -conf=\"$this->caddyFile\" -pidfile=\"$this->pidFile\" -log=\"$this->logFile\"";
 
-        Shell::cmd(("tmux new -d -s caddy '{$ulimit} && {$chwd} && {$startCaddy}'"));
+        Shell::cmd("tmux new -d -s caddy '{$ulimit} && {$chwd} && {$startCaddy}'");
 
         return $this;
     }

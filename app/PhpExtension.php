@@ -72,7 +72,7 @@ class PhpExtension
         $this->phpConfig->replace(
             Pattern::create($this->iniEnabled()),
             $this->iniDisabled()
-        )->write();
+        )->save();
 
         return $this;
     }
@@ -85,7 +85,7 @@ class PhpExtension
         $this->phpConfig->replace(
             Pattern::create($this->iniDisabled()),
             $this->iniEnabled()
-        )->write();
+        )->save();
 
         return $this;
     }
