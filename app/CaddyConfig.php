@@ -120,6 +120,11 @@ class CaddyConfig implements ConfigContract
 
     rewrite {
         r ^/static/(version\d*/)?(.*)$
+        to /static/{2}
+    }
+
+    rewrite {
+        r ^/static/(version\d*/)?(.*)$
         to /static.php?resource={2}
     }
 
