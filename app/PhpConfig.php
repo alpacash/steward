@@ -73,7 +73,13 @@ class PhpConfig implements ConfigContract
      */
     public function replace(string $search, string $replace)
     {
-        $this->contents = preg_replace($search, $replace, $this->contents);
+        if (!$this->has($search)) {
+            $this->contents = "{$replace}\n\n{$this->contents}";
+
+            return $this;
+        }
+
+        $this->contents = preg_replace(addslashes($search), addslashes($replace), $this->contents);
 
         return $this;
     }
