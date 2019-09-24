@@ -29,7 +29,7 @@ class AppUpdate extends Command
     public function handle()
     {
         try {
-            $latest = file_get_contents("https://stew.sh/version");
+            $latest = trim(file_get_contents("https://stew.sh/version"));
         } catch (\Exception $e) { }
 
         if (empty($latest)) {
@@ -47,7 +47,7 @@ class AppUpdate extends Command
 
         $this->output->note("Updating application from {$current} => {$latest}...");
 
-        Shell::cmd("bash <(curl -s https://stew.sh/install)");
+        Shell::cmd("bash <(curl -s https://stew.sh/install)", $this->output);
 
         return 0;
     }
