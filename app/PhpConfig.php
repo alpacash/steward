@@ -79,7 +79,7 @@ class PhpConfig implements ConfigContract
             return $this;
         }
 
-        $this->contents = preg_replace(addslashes($search), addslashes($replace), $this->contents);
+        $this->contents = preg_replace($search, $replace, $this->contents);
 
         return $this;
     }
