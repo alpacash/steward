@@ -35,4 +35,15 @@ class StewardConfig
     {
         return $_SERVER['HOME'] . "/sites";
     }
+
+    /**
+     * @return string
+     */
+    public static function currentTld()
+    {
+        $tldFile = self::home() . "/.path";
+        touch($tldFile);
+
+        return file_get_contents(self::home() . "/.tld") ?: 'test';
+    }
 }

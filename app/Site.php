@@ -27,7 +27,7 @@ class Site
     public function domain()
     {
         return ! Str::endsWith($this->site, ['.io', '.sh', '.dev', '.localhost', '.test'])
-            ? $this->site . ".test"
+            ? $this->site . "." . StewardConfig::currentTld()
             : $this->site;
     }
 

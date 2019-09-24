@@ -5,6 +5,7 @@ namespace App\Config;
 use App\Contract\ConfigContract;
 use App\Server\DnsmasqServer;
 use App\Shell;
+use App\StewardConfig;
 use Illuminate\Support\Str;
 
 class DnsmasqConfig implements ConfigContract
@@ -58,7 +59,8 @@ class DnsmasqConfig implements ConfigContract
             Shell::cmd("echo 'conf-file={$this->server->customFile()}' >> /usr/local/etc/dnsmasq.conf");
         }
 
-        \file_put_contents($this->server->customFile(), "address=/.test/127.0.0.1");
+        \file_put_contents($this->server->customFile(), "address=/."
+            . StewardConfig::currentTld() ."/127.0.0.1");
 
         return $this;
     }
