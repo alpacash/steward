@@ -42,7 +42,7 @@ class LogsTail extends Command
 
         $this->output->note("Tailing logs @ {$logsHome}");
 
-        Shell::cmd("tail -f {$path}", $this->output);
+        Shell::cmd("tail -f {$path}", $this->output, null);
 
         return 0;
     }
