@@ -19,7 +19,7 @@ class Shell
      *
      * @return int
      */
-    public static function cmd($command, OutputInterface $output = null, int $timeout = 120)
+    public static function cmd($command, OutputInterface $output = null, ?int $timeout = 120)
     {
         return Process::fromShellCommandline($command)
             ->setTimeout($timeout)
