@@ -4,5 +4,3 @@ rm -f /usr/local/bin/stew
 echo "Downloading latest build..."
 curl -s https://stew.sh/steward > /usr/local/bin/stew
 chmod +x /usr/local/bin/stew
-
-/usr/local/bin/stew boot
