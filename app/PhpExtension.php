@@ -119,6 +119,6 @@ class PhpExtension
      */
     protected function iniEnabled()
     {
-        return "{$this->type}=\"{$this->name}{$this->suffix}\";";
+        return "{$this->type}=\"{$this->name}{$this->suffix}\"";
     }
 }
