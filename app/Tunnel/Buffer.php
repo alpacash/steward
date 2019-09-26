@@ -1,9 +1,8 @@
 <?php
 
-namespace App;
+namespace App\Tunnel;
 
-use function GuzzleHttp\Psr7\parse_request;
-use function GuzzleHttp\Psr7\parse_response;
+use App\Tunnel\TunnelResponse;
 use GuzzleHttp\Psr7\Response;
 
 class Buffer
@@ -30,7 +29,7 @@ class Buffer
      */
     public function chunk(string $data)
     {
-        $this->buffer .= $data;
+        $this->buffer .= str_replace('===stew-data-end===', '', $data);
 
         return $this;
     }
@@ -62,19 +61,15 @@ class Buffer
     }
 
     /**
-     * @return false|\App\TunnelResponse
+     * @return \App\Tunnel\TunnelResponse
      */
     public function tunnelResponse()
     {
         try {
             $response = $this->read();
-            $response = substr($response, strpos($response, "===\r\n") + 5);
-            $response = str_replace("\r\n===stew-response-end===", "", $response);
 
-            /** @var \App\TunnelResponse $s */
+            /** @var \App\Tunnel\TunnelResponse $s */
             $s = unserialize($response);
-
-//            echo "aaaaa\n" . $s->getRequestId() . "\n";
 
             return $s;
         } catch (\Exception $e) {

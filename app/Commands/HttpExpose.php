@@ -2,12 +2,15 @@
 
 namespace App\Commands;
 
-use App\TunnelRequest;
-use App\TunnelResponse;
+use App\Tunnel\TunnelRequest;
+use App\Tunnel\TunnelResponse;
 use GuzzleHttp\Client;
+use GuzzleHttp\Psr7\Response;
 use function GuzzleHttp\Psr7\str;
 use LaravelZero\Framework\Commands\Command;
 use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
+use React\EventLoop\LoopInterface;
 use React\Socket\ConnectionInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -28,9 +31,9 @@ class HttpExpose extends Command
     protected $description = 'Expose your site to the internetz';
 
     /**
-     * @var \App\Buffer
+     * @var \React\Socket\ConnectionInterface[]
      */
-    protected $buffer;
+    protected $connections = [];
 
     /**
      * Execute the console command.
@@ -42,6 +45,24 @@ class HttpExpose extends Command
         $this->output->note("Exposing local dev environments");
 
         $loop = \React\EventLoop\Factory::create();
+
+        for ($i=0; $i < 10; $i++) {
+            $this->createConnection('conn-' . $i, $loop);
+        }
+
+        $loop->run();
+
+        return 0;
+    }
+
+    /**
+     * @param string                         $key
+     * @param \React\EventLoop\LoopInterface $loop
+     *
+     * @return \React\Socket\Connector
+     */
+    protected function createConnection(string $key, LoopInterface $loop)
+    {
         $socket = new \React\Socket\Connector($loop, ['timeout' => 10]);
 
         $listen = ($this->option('localhost') ? '127.0.0.1' : 'stew.sh') . ":8090";
@@ -52,8 +73,6 @@ class HttpExpose extends Command
             $this->output->note("Connected to " . $connection->getRemoteAddress());
 
             $connection->on('data', function ($request) use ($connection) {
-
-                $this->verbose("Incoming request from outside...");
 
                 // When we receive data from the socket it is a forwarded http request.
                 // So we will forward this request to our local webserver and then reply with
@@ -67,13 +86,11 @@ class HttpExpose extends Command
             $this->output->error("The tunnel seems offline at this moment. Try again later.");
         });
 
-        $loop->run();
-
-        return 0;
+        return $this->connections[$key] = $socket;
     }
 
     /**
-     * @param \App\TunnelRequest                $tunnel
+     * @param \App\Tunnel\TunnelRequest         $tunnel
      * @param \React\Socket\ConnectionInterface $socket
      *
      * @throws \GuzzleHttp\Exception\GuzzleException
@@ -84,69 +101,43 @@ class HttpExpose extends Command
 
         echo "Request hash:\n" . md5(str($request)) . "\n";
 
+        $originalHost = $request->getUri()->getHost();
         $this->output->note("Tunneling request " . $request->getRequestTarget()
-            . " => " . $request->getUri()->getHost());
+            . " => " . $originalHost);
 
-        $headers = $request->getHeaders();
-        $originalHost = $headers['Host'][0];
-        $headers['Host'][0] = substr($originalHost, 0, strpos($originalHost, ':') ?: strlen($originalHost));
+        $request = $request->withUri($request->getUri()->withPort(80)->withHost('127.0.0.1'), true);
+        $request = $request->withUri($request->getUri()->withPort(80)->withHost(
+            substr($originalHost, 0, strpos($originalHost, ':') ?: strlen($originalHost))
+        ));
+
+        /** @var \Psr\Http\Message\ServerRequestInterface $request */
+        $request = $request->withoutHeader('Content-Length');
+
+        $this->output->note("Executing http request to local webserver => {$request->getMethod()} {$request->getUri()}");
 
         try {
-            $this->output->note("Executing http request to local webserver => {$request->getUri()}");
-            $uri = $request->getUri();
-            $uri = $uri->getScheme() . "://" . $uri->getHost() . $uri->getPath() . $uri->getQuery();
+            $response = (new Client())->send($request, [
+                'http_errors' => false,
+                'timeout' => 10,
+                'synchronous' => true,
+                'allow_redirects' => false // need this
+            ]);
 
-            echo (string)$uri;
-            $response = (new Client())->request(
-                $request->getMethod(),
-                    $uri, [
-                    'http_errors' => false,
-                    'body' => $request->getBody(),
-                    'headers' => $headers,
-                    'version' => $request->getProtocolVersion()
-                ]
-            );
             $this->output->success("Executed http request to local webserver <= {$response->getStatusCode()}");
 
             $response = new TunnelResponse($tunnel->getId(), $response);
-
-            // DIT HIER GAAT HET HEM DOEN
-            $chunks = $this->buildRawChunks($tunnel, $response);
-            foreach ($chunks as $chunk) {
-                $socket->write($chunk);
-                usleep(100);
-            }
-            $socket->end();
         } catch (\Exception $e) {
-            $this->output->error($e->getMessage());
-            $socket->write('====stew-proceed====');
+            $this->output->error("Failed http request to local webserver...\n" . $e->getMessage());
 
-            return;
-        }
-    }
-
-    protected function buildRawChunks(TunnelRequest $tunnel, TunnelResponse $response)
-    {
-        $chunks = str_split(serialize($response), 500);
-
-        foreach ($chunks as $i => $chunk) {
-            $result[] = $this->buildRawChunk($tunnel->getId(), $chunk);
+            $response = new TunnelResponse($tunnel->getId(), new Response(500, [], "Server timeout."));
         }
 
-        return $result ?? [];
-    }
+        echo str($request);
 
-    /**
-     * @param string $requestId
-     * @param string $chunk
-     *
-     * @return string
-     */
-    protected function buildRawChunk($requestId, string $chunk)
-    {
-        return "===stew-response-chunk-for:{$requestId}:/===\r\n"
-            . $chunk . "\r\n"
-            . "===stew-response-end===\r\n";
+        // DIT HIER GAAT HET HEM DOEN
+        $data = serialize($response) . "===stew-data-end===";
+
+        $socket->write($data);
     }
 
     /**

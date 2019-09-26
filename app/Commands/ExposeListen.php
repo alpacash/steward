@@ -2,7 +2,7 @@
 
 namespace App\Commands;
 
-use App\TunnelExceptionHandler;
+use App\Exceptions\TunnelExceptionHandler;
 use LaravelZero\Framework\Commands\Command;
 use Psr\Http\Message\RequestInterface;
 use React\EventLoop\Factory;
@@ -55,7 +55,7 @@ class ExposeListen extends Command
     {
         $loop = Factory::create();
 
-        $tunnel = (new \App\HttpTunnel())->setErrorHandler(
+        $tunnel = (new \App\Tunnel\HttpTunnel())->setErrorHandler(
             new TunnelExceptionHandler($this->output)
         )->listen($loop, function(RequestInterface $request) {
             $this->output->note("Listening to new http request to " . $request->getUri()->getHost());
@@ -67,15 +67,7 @@ class ExposeListen extends Command
             $this->output->note("New connection from {$server->getRemoteAddress()} => "
                 . $server->getLocalAddress());
 
-            $server->on('close', function() use ($tunnel) {
-                $tunnel->removeServer('tmp');
-            });
-
-            $server->on('error', function() use ($tunnel) {
-                $tunnel->removeServer('tmp');
-            });
-
-            $tunnel->addServer('tmp', $server);
+            $tunnel->addServer($server);
         });
 
         $loop->run();

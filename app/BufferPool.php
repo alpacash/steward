@@ -14,27 +14,33 @@ class BufferPool
      *
      * @return \App\Buffer
      */
-    public function create(TunnelRequest $request)
+    public function forRequest(TunnelRequest $request)
     {
+        if (! empty($this->buffers[$request->getId()])) {
+            return $this->buffers[$request->getId()];
+        }
+
         return $this->buffers[$request->getId()] = new Buffer();
     }
 
     /**
-     * @param $chunk
+     * @param \App\TunnelRequest $request
+     * @param string             $chunk
      *
      * @return \App\Buffer
      */
-    public function chunk($chunk)
+    public function chunk(TunnelRequest $request, string $chunk)
     {
-        $header = substr(substr($chunk, 0, strpos($chunk, ":/===\r\n")), 3);
-        $requestId = last(explode(':', $header));
+        return $this->forRequest($request)->chunk($chunk);
+    }
 
-        if (!isset($this->buffers[$requestId])
-            || !$this->buffers[$requestId] instanceof Buffer) {
-            var_dump([$requestId]); exit;
-            return new Buffer();
+    /**
+     * @param \App\TunnelRequest $request
+     */
+    public function clear(TunnelRequest $request)
+    {
+        if (isset($this->buffers[$request->getId()])) {
+            unset ($this->buffers[$request->getId()]);
         }
-
-        return $this->buffers[$requestId]->chunk($chunk);
     }
 }
