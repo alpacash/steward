@@ -2,7 +2,7 @@
 
 namespace App\Commands;
 
-use App\TcpProxy;
+use App\HttpTunnel;
 use LaravelZero\Framework\Commands\Command;
 
 class ExposeListen extends Command
@@ -30,19 +30,22 @@ class ExposeListen extends Command
     {
         $loop = \React\EventLoop\Factory::create();
         $server = new \React\Socket\LimitingServer(
-            new \React\Socket\Server("0.0.0.0:8085", $loop),
+            new \React\Socket\Server("0.0.0.0:8090", $loop),
             100,
             true
         );
 
         $this->output->note("Listening on " . $server->getAddress());
 
-        $server->on('connection', function (\React\Socket\ConnectionInterface $client) {
-            $this->output->note("New connection: {$client->getRemoteAddress()}");
+        $server->on('connection', function (\React\Socket\ConnectionInterface $connection) use ($server) {
+            $this->output->note("New connection: {$connection->getRemoteAddress()}");
+            $connection->write("hi there...");
+            $connection->close();
+            exit;
             // Webserver listening should pass everything to $client
             // and reply with appropriate response.
-            (new TcpProxy($client, '0.0.0.0:8080'))->listen();
-            $client->close();
+//            (new HttpTunnel('0.0.0.0:8080'))->respondTo($connection);
+//            $connection->close();
         });
 
         $loop->run();

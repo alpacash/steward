@@ -34,13 +34,14 @@ class HttpExpose extends Command
         $connection = new \React\Socket\Connector($loop);
 
         // Connect to the stew.sh proxy
-        $connection->connect('127.0.0.1:8085')->then(function (ConnectionInterface $connection) use ($loop) {
+        $connection->connect('127.0.0.1:8090')->then(function (ConnectionInterface $connection) use ($loop) {
             $this->output->note("Connected to " . $connection->getRemoteAddress());
-            $connection->on('data', function ($response) use ($connection) {
-                echo $response;
-//                $this->output->write($response);
-//                $this->forward($response, $connection);
+            $connection->on('data', function ($request) use ($connection) {
+                echo "ja";
                 $connection->close();
+//                $this->output->write($request);
+//                $this->forward($request, $connection);
+//                $connection->close();
             });
         });
 
@@ -60,7 +61,9 @@ class HttpExpose extends Command
 
         $out->connect('127.0.0.1:80')->then(function (ConnectionInterface $out) use ($loop, $request, $respondTo) {
             $out->write($request);
+            $this->output->note("Successfully connected to the webserver...");
             $out->on('data', function ($response) use ($out, $respondTo) {
+                $this->output->write($response);
                 $respondTo->write($response);
                 $out->close();
             });
