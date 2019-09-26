@@ -87,6 +87,10 @@ class ExposeListen extends Command
         // Request from outside
         $httpConnection->on('data', function ($httpData) use ($httpConnection) {
             if (!$this->socketConnection) {
+                $this->output->warning("No open tunnel found, ignoring request.");
+                $httpConnection->end();
+                $httpConnection->close();
+
                 return;
             }
 
