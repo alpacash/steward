@@ -2,45 +2,65 @@
 
 namespace App;
 
-use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\Request;
-use Proxy\Adapter\Guzzle\GuzzleAdapter;
-use Proxy\Filter\RemoveEncodingFilter;
-use Proxy\Proxy;
+use Psr\Http\Message\RequestInterface;
 
 class HttpRequest
 {
+    /**
+     * @var \Psr\Http\Message\RequestInterface
+     */
+    protected $request;
 
     /**
-     * @param string $message
+     * HttpRequest constructor.
      *
-     * @return \Psr\Http\Message\ResponseInterface
+     * @param \Psr\Http\Message\RequestInterface $request
      */
-    public static function raw(string $message)
-    {
-        return (new static())->parseHttpMessage($message);
+    public function __construct(
+        RequestInterface $request
+    ) {
+        $this->request = $request;
     }
 
     /**
      * @param string $message
      *
-     * @return \Psr\Http\Message\ResponseInterface
+     * @return self
      */
-    protected function parseHttpMessage(string $message)
+    public static function raw(string $message)
     {
-        $headers = $this->parseHeaders($message);
+        return new static(
+            self::parseHttpMessage($message)
+        );
+    }
+
+    /**
+     * @param string $message
+     *
+     * @return \GuzzleHttp\Psr7\Request
+     */
+    protected static function parseHttpMessage(string $message)
+    {
+        $headers = self::parseHeaders($message);
         list ($method, $path) = explode(" ", $headers[0]);
-
         $body = trim(substr($message, strpos($message, "\r\n\r\n")));
-        $request = new Request($method, "{$headers['Host']}{$path}", $headers, last(explode("\n\n", $body)));
+        $host = $headers['Host'];
+        $scheme = "http://";
 
-        // Create a guzzle client
-        $guzzle = new Client();
-        $proxy = new Proxy(new GuzzleAdapter($guzzle));
-        $proxy->filter(new RemoveEncodingFilter());
-        new \Zend\Diactoros\Request();
+        return new Request($method, "{$scheme}{$host}{$path}", $headers, last(explode("\n\n", $body)));
+    }
 
-        return $proxy->forward($request)->to('http://127.0.0.1:80');
+    /**
+     * @return string
+     */
+    public function logFormat(): string
+    {
+        $request = $this->getRequest();
+
+        return "  <fg=cyan>IN</>\t<fg=green>" . $request->getMethod() . "</>\t"
+            . $request->getUri()->getHost() . "\t"
+            . "<fg=green> => </> <fg=red>" . $request->getUri()->getPath() . "</>";
     }
 
     /**
@@ -48,7 +68,7 @@ class HttpRequest
      *
      * @return array
      */
-    protected function parseHeaders(string $message)
+    protected static function parseHeaders(string $message)
     {
         $headers = array_map(function ($value) {
             return array_map("trim", explode(":", $value, 2));
@@ -63,5 +83,13 @@ class HttpRequest
         }
 
         return $result;
+    }
+
+    /**
+     * @return \Psr\Http\Message\RequestInterface
+     */
+    public function getRequest(): RequestInterface
+    {
+        return $this->request;
     }
 }

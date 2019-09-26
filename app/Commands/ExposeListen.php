@@ -53,17 +53,13 @@ class ExposeListen extends Command
                 . $socketConnection->getLocalAddress());
 
             // Response from local webserver
-            $socketConnection->on('data', function ($socketData) use ($socketConnection) {
+            $socketConnection->on('data', function ($chunk) use ($socketConnection) {
                 if (!$this->httpConnection) {
                     return;
                 }
 
                 $this->output->comment("Incoming response from local webserver...");
-                $this->output->write($socketData);
-
-                // We will not close the connection and leave this to the
-                // receiving webserver. Awesome.
-                $this->httpConnection->write($socketData);
+                $this->httpConnection->write($chunk);
             });
         });
 
@@ -85,7 +81,7 @@ class ExposeListen extends Command
             . $httpConnection->getLocalAddress());
 
         // Request from outside
-        $httpConnection->on('data', function ($httpData) use ($httpConnection) {
+        $httpConnection->on('data', function ($rawRequest) use ($httpConnection) {
             if (!$this->socketConnection) {
                 $this->output->warning("No open tunnel found, ignoring request.");
                 $httpConnection->end();
@@ -94,7 +90,7 @@ class ExposeListen extends Command
                 return;
             }
 
-            $this->socketConnection->write($httpData);
+            $this->socketConnection->write($rawRequest);
         });
     }
 }

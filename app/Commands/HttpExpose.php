@@ -2,8 +2,11 @@
 
 namespace App\Commands;
 
+use App\Buffer;
+use App\HttpRequest;
 use LaravelZero\Framework\Commands\Command;
 use React\Socket\ConnectionInterface;
+use Symfony\Component\Console\Output\OutputInterface;
 
 class HttpExpose extends Command
 {
@@ -12,7 +15,7 @@ class HttpExpose extends Command
      *
      * @var string
      */
-    protected $signature = 'http:expose';
+    protected $signature = 'http:expose {--localhost}';
 
     /**
      * The description of the command.
@@ -20,6 +23,11 @@ class HttpExpose extends Command
      * @var string
      */
     protected $description = 'Expose your site to the internetz';
+
+    /**
+     * @var \App\Buffer
+     */
+    protected $buffer;
 
     /**
      * Execute the console command.
@@ -33,17 +41,26 @@ class HttpExpose extends Command
         $loop = \React\EventLoop\Factory::create();
         $socket = new \React\Socket\Connector($loop);
 
+        $listen = ($this->option('localhost') ? '127.0.0.1' : 'stew.sh') . ":8090";
+
         // Connect to the stew.sh proxy
-        $socket->connect('stew.sh:8090')->then(function (ConnectionInterface $connection) use ($loop) {
+        $socket->connect($listen)->then(function (ConnectionInterface $connection) use ($loop) {
+
             $this->output->note("Connected to " . $connection->getRemoteAddress());
             $connection->on('data', function ($request) use ($connection) {
-                $this->output->comment("Incoming request from outside...");
+
+                $this->verbose("Incoming request from outside...");
 
                 // When we receive data from the socket it is forwarded http request.
                 // So we will forward this request to our local webserver and then reply with
                 // the webserver's response.
                 $this->forward($request, $connection);
             });
+        })->otherwise(function($exception) {
+
+            /** @var \RuntimeException $exception */
+            $this->output->error("The tunnel seems offline at this moment. Try again later."
+                . $this->verbose("\n" . $exception->getMessage()));
         });
 
         $loop->run();
@@ -58,21 +75,28 @@ class HttpExpose extends Command
     protected function forward(string $request, ConnectionInterface $socket)
     {
         $request = $this->tamper($request);
-        $this->output->write($request);
 
         $loop = \React\EventLoop\Factory::create();
         $webserver = new \React\Socket\Connector($loop);
         $webserver->connect('127.0.0.1:80')
             ->then(function (ConnectionInterface $webserver) use ($loop, $request, $socket) {
+
+                $this->buffer = new Buffer();
+
+                $this->output->writeln(HttpRequest::raw($request)->logFormat());
+                $this->verbose("Successfully connected to the webserver...");
+
                 $webserver->write($request);
-                $this->output->note("Successfully connected to the webserver...");
                 $webserver->on('data', function ($response) use ($webserver, $socket) {
-                    echo $response;
-                    // Close connection with the webserver
-                    $webserver->close();
 
                     // Forward webserver response to the socket
-                    $socket->write($response);
+                    $this->buffer->add($response);
+
+                    // Was this the last chunk?
+                    if (substr(trim($response), -1) === '0') {
+                        $socket->write($this->buffer->read());
+                        $webserver->close();
+                    }
                 });
             });
 
@@ -90,5 +114,17 @@ class HttpExpose extends Command
         $request = preg_replace('/^(Host)\: (.+)(\:\d+)/im', 'Host: $2', $request);
 
         return $request;
+    }
+
+    /**
+     * @param string $message
+     */
+    protected function verbose(string $message)
+    {
+        if (!$this->getOutput()->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
+            return;
+        }
+
+        $this->output->comment($message);
     }
 }
