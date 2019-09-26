@@ -15,7 +15,10 @@ class Stack
         'caddy' => ['install_script' => 'brew install caddy'],
         'tmux' => ['install_script' => 'brew install tmux'],
         'php' => ['install_script' => 'brew install php@7.2'],
-        'dnsmasq' => ['install_script' => 'brew install dnsmasq']
+        'dnsmasq' => [
+            'install_script' => 'brew install dnsmasq',
+            'verify_script' => 'ls $(brew --prefix)/Cellar/dnsmasq'
+        ]
     ];
 
     /**
@@ -79,7 +82,9 @@ class Stack
     {
         $missing = [];
         foreach (self::$dependencies as $dependency => $options) {
-            if (!empty($which = shell_exec("which {$dependency}"))) {
+
+            $verifyScript = $options['verify_script'] ?? "which {$dependency}";
+            if (! empty($which = trim(shell_exec($verifyScript)))) {
                 $this->binaries[$dependency] = $which;
 
                 continue;

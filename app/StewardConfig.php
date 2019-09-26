@@ -49,7 +49,7 @@ class StewardConfig
      */
     public static function currentTld()
     {
-        $tldFile = self::home() . "/.path";
+        $tldFile = self::home() . "/.tld";
         touch($tldFile);
 
         return trim(file_get_contents(self::home() . "/.tld") ?: 'test');

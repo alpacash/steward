@@ -68,7 +68,11 @@ class DnsmasqServer implements ServerContract
      */
     public function version(): string
     {
-        preg_match("/^(Dnsmasq version) ([\.\d]+)/i", shell_exec('dnsmasq -v'), $matches);
+        preg_match("/^(Dnsmasq version) ([\.\d]+)/i", shell_exec('/usr/local/sbin/dnsmasq -v'), $matches);
+
+        if (empty($matches)) {
+            return 'unknown';
+        }
 
         return last($matches);
     }
