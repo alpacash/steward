@@ -34,11 +34,10 @@ class HttpExpose extends Command
         $socket = new \React\Socket\Connector($loop);
 
         // Connect to the stew.sh proxy
-        $socket->connect('127.0.0.1:8090')->then(function (ConnectionInterface $connection) use ($loop) {
+        $socket->connect('stew.sh:8090')->then(function (ConnectionInterface $connection) use ($loop) {
             $this->output->note("Connected to " . $connection->getRemoteAddress());
             $connection->on('data', function ($request) use ($connection) {
                 $this->output->comment("Incoming request from outside...");
-                $this->output->write($request);
 
                 // When we receive data from the socket it is forwarded http request.
                 // So we will forward this request to our local webserver and then reply with
@@ -58,6 +57,9 @@ class HttpExpose extends Command
      */
     protected function forward(string $request, ConnectionInterface $socket)
     {
+        $request = $this->tamper($request);
+        $this->output->write($request);
+
         $loop = \React\EventLoop\Factory::create();
         $webserver = new \React\Socket\Connector($loop);
         $webserver->connect('127.0.0.1:80')
@@ -75,5 +77,18 @@ class HttpExpose extends Command
             });
 
         $loop->run();
+    }
+
+    /**
+     * @param string $request
+     *
+     * @return string|string[]|null
+     */
+    protected function tamper(string $request)
+    {
+        // Remove port from the headers.
+        $request = preg_replace('/^(Host)\: (.+)(\:\d+)/im', 'Host: $2', $request);
+
+        return $request;
     }
 }
