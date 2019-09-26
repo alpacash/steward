@@ -52,11 +52,17 @@ class ExposeListen extends Command
             $this->output->note("New connection from {$socketConnection->getRemoteAddress()} => "
                 . $socketConnection->getLocalAddress());
 
+            // Response from local webserver
             $socketConnection->on('data', function ($socketData) use ($socketConnection) {
                 if (!$this->httpConnection) {
                     return;
                 }
 
+                $this->output->comment("Incoming response from local webserver...");
+                $this->output->write($socketData);
+
+                // We will not close the connection and leave this to the
+                // receiving webserver. Awesome.
                 $this->httpConnection->write($socketData);
             });
         });
@@ -78,12 +84,12 @@ class ExposeListen extends Command
         $this->output->note("Http request from {$httpConnection->getRemoteAddress()} => "
             . $httpConnection->getLocalAddress());
 
+        // Request from outside
         $httpConnection->on('data', function ($httpData) use ($httpConnection) {
             if (!$this->socketConnection) {
                 return;
             }
 
-            $httpConnection->close();
             $this->socketConnection->write($httpData);
         });
     }
