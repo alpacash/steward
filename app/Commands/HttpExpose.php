@@ -31,17 +31,18 @@ class HttpExpose extends Command
         $this->output->note("Exposing local dev environments");
 
         $loop = \React\EventLoop\Factory::create();
-        $connection = new \React\Socket\Connector($loop);
+        $socket = new \React\Socket\Connector($loop);
 
         // Connect to the stew.sh proxy
-        $connection->connect('127.0.0.1:8090')->then(function (ConnectionInterface $connection) use ($loop) {
+        $socket->connect('127.0.0.1:8090')->then(function (ConnectionInterface $connection) use ($loop) {
             $this->output->note("Connected to " . $connection->getRemoteAddress());
             $connection->on('data', function ($request) use ($connection) {
-                echo "ja";
-                $connection->close();
-//                $this->output->write($request);
-//                $this->forward($request, $connection);
-//                $connection->close();
+                $this->output->write($request);
+
+                // When we receive data from the socket it is forwarded http request.
+                // So we will forward this request to our local webserver and then reply with
+                // the webserver's response.
+                $this->forward($request, $connection);
             });
         });
 
@@ -52,20 +53,23 @@ class HttpExpose extends Command
 
     /**
      * @param string                            $request
-     * @param \React\Socket\ConnectionInterface $respondTo
+     * @param \React\Socket\ConnectionInterface $socket
      */
-    protected function forward(string $request, ConnectionInterface $respondTo)
+    protected function forward(string $request, ConnectionInterface $socket)
     {
         $loop = \React\EventLoop\Factory::create();
         $out = new \React\Socket\Connector($loop);
 
-        $out->connect('127.0.0.1:80')->then(function (ConnectionInterface $out) use ($loop, $request, $respondTo) {
+        $out->connect('127.0.0.1:80')->then(function (ConnectionInterface $out) use ($loop, $request, $socket) {
             $out->write($request);
             $this->output->note("Successfully connected to the webserver...");
-            $out->on('data', function ($response) use ($out, $respondTo) {
-                $this->output->write($response);
-                $respondTo->write($response);
+            $out->on('data', function ($response) use ($out, $socket) {
+                echo $response;
+                // Close connection with the webserver
                 $out->close();
+
+                // Forward webserver response to the socket
+                $socket->write($response);
             });
         });
 

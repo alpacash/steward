@@ -2,8 +2,9 @@
 
 namespace App\Commands;
 
-use App\HttpTunnel;
 use LaravelZero\Framework\Commands\Command;
+use React\Socket\ConnectionInterface;
+use React\Socket\Server as SocketServer;
 
 class ExposeListen extends Command
 {
@@ -22,6 +23,16 @@ class ExposeListen extends Command
     protected $description = 'Start http proxy listener.';
 
     /**
+     * @var \React\Socket\ConnectionInterface
+     */
+    protected $socketConnection;
+
+    /**
+     * @var \React\Socket\ConnectionInterface
+     */
+    protected $httpConnection;
+
+    /**
      * Execute the console command.
      *
      * @return mixed
@@ -29,27 +40,51 @@ class ExposeListen extends Command
     public function handle()
     {
         $loop = \React\EventLoop\Factory::create();
-        $server = new \React\Socket\LimitingServer(
-            new \React\Socket\Server("0.0.0.0:8090", $loop),
-            100,
-            true
-        );
+        $httpServer = new SocketServer("0.0.0.0:8091", $loop);
+        $httpServer = new \React\Socket\LimitingServer($httpServer, 100, true);
 
-        $this->output->note("Listening on " . $server->getAddress());
+        $socket = new SocketServer("0.0.0.0:8090", $loop);
 
-        $server->on('connection', function (\React\Socket\ConnectionInterface $connection) use ($server) {
-            $this->output->note("New connection: {$connection->getRemoteAddress()}");
-            $connection->write("hi there...");
-            $connection->close();
-            exit;
-            // Webserver listening should pass everything to $client
-            // and reply with appropriate response.
-//            (new HttpTunnel('0.0.0.0:8080'))->respondTo($connection);
-//            $connection->close();
+        $this->output->note("Listening on " . $socket->getAddress() . " => " . $httpServer->getAddress());
+
+        $socket->on('connection', function (ConnectionInterface $socketConnection) use ($socket, $httpServer) {
+            $this->socketConnection = $socketConnection;
+            $this->output->note("New connection from {$socketConnection->getRemoteAddress()} => "
+                . $socketConnection->getLocalAddress());
+
+            $socketConnection->on('data', function ($socketData) use ($socketConnection) {
+                if (!$this->httpConnection) {
+                    return;
+                }
+
+                $this->httpConnection->write($socketData);
+            });
         });
+
+        $httpServer->on('connection', [$this, 'httpConnection']);
 
         $loop->run();
 
         return 1;
+    }
+
+    /**
+     * @param \React\Socket\ConnectionInterface $httpConnection
+     */
+    public function httpConnection(ConnectionInterface $httpConnection)
+    {
+        $this->httpConnection = $httpConnection;
+
+        $this->output->note("Http request from {$httpConnection->getRemoteAddress()} => "
+            . $httpConnection->getLocalAddress());
+
+        $httpConnection->on('data', function ($httpData) use ($httpConnection) {
+            if (!$this->socketConnection) {
+                return;
+            }
+
+            $httpConnection->close();
+            $this->socketConnection->write($httpData);
+        });
     }
 }
