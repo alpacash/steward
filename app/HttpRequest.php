@@ -58,7 +58,7 @@ class HttpRequest
     {
         $request = $this->getRequest();
 
-        return "  <fg=cyan>IN</>\t<fg=green>" . $request->getMethod() . "</>\t"
+        return "  <fg=cyan> <== </>\t<fg=green>" . $request->getMethod() . "</>\t"
             . $request->getUri()->getHost() . "\t"
             . "<fg=green> => </> <fg=red>" . $request->getUri()->getPath() . "</>";
     }

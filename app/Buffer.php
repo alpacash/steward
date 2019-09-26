@@ -56,4 +56,18 @@ class Buffer
     {
         return $this->buffer;
     }
+
+    /**
+     * @param string $contentLength
+     *
+     * @return bool
+     */
+    public function reached(?string $contentLength)
+    {
+        if ($contentLength === null) {
+            return false;
+        }
+
+        return strlen($this->buffer) >= $contentLength;
+    }
 }

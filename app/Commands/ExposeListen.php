@@ -5,6 +5,7 @@ namespace App\Commands;
 use LaravelZero\Framework\Commands\Command;
 use React\Socket\ConnectionInterface;
 use React\Socket\Server as SocketServer;
+use Symfony\Component\Console\Output\OutputInterface;
 
 class ExposeListen extends Command
 {
@@ -39,9 +40,25 @@ class ExposeListen extends Command
      */
     public function handle()
     {
+        try {
+            $this->listen();
+        } catch (\Exception $e) {
+            $this->output->error($e->getMessage());
+
+            return 1;
+        }
+
+        return 0;
+    }
+
+    /**
+     * @return void
+     */
+    protected function listen()
+    {
         $loop = \React\EventLoop\Factory::create();
         $httpServer = new SocketServer("0.0.0.0:8091", $loop);
-        $httpServer = new \React\Socket\LimitingServer($httpServer, 100, true);
+        $httpServer = new \React\Socket\LimitingServer($httpServer, 100, false);
 
         $socket = new SocketServer("0.0.0.0:8090", $loop);
 
@@ -58,7 +75,7 @@ class ExposeListen extends Command
                     return;
                 }
 
-                $this->output->comment("Incoming response from local webserver...");
+                $this->output->note("==> Http response from {$socketConnection->getRemoteAddress()}");
                 $this->httpConnection->write($chunk);
             });
         });
@@ -66,8 +83,6 @@ class ExposeListen extends Command
         $httpServer->on('connection', [$this, 'httpConnection']);
 
         $loop->run();
-
-        return 1;
     }
 
     /**
@@ -77,20 +92,37 @@ class ExposeListen extends Command
     {
         $this->httpConnection = $httpConnection;
 
-        $this->output->note("Http request from {$httpConnection->getRemoteAddress()} => "
+        $this->output->note("<== Http request from {$httpConnection->getRemoteAddress()} => "
             . $httpConnection->getLocalAddress());
 
         // Request from outside
         $httpConnection->on('data', function ($rawRequest) use ($httpConnection) {
-            if (!$this->socketConnection) {
+            if (!$this->socketConnection || !$this->socketConnection->isWritable()) {
                 $this->output->warning("No open tunnel found, ignoring request.");
                 $httpConnection->end();
                 $httpConnection->close();
+
+                if ($this->socketConnection instanceof ConnectionInterface) {
+                    $this->socketConnection->end();
+                    $this->socketConnection->close();
+                }
 
                 return;
             }
 
             $this->socketConnection->write($rawRequest);
         });
+    }
+
+    /**
+     * @param string $message
+     */
+    protected function verbose(string $message)
+    {
+        if ($this->getOutput()->getVerbosity() < OutputInterface::VERBOSITY_VERBOSE) {
+            return;
+        }
+
+        $this->output->comment($message);
     }
 }

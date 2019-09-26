@@ -4,6 +4,8 @@ namespace App\Commands;
 
 use App\Buffer;
 use App\HttpRequest;
+use App\HttpResponse;
+use Illuminate\Support\Str;
 use LaravelZero\Framework\Commands\Command;
 use React\Socket\ConnectionInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -39,7 +41,7 @@ class HttpExpose extends Command
         $this->output->note("Exposing local dev environments");
 
         $loop = \React\EventLoop\Factory::create();
-        $socket = new \React\Socket\Connector($loop);
+        $socket = new \React\Socket\Connector($loop, ['timeout' => 10]);
 
         $listen = ($this->option('localhost') ? '127.0.0.1' : 'stew.sh') . ":8090";
 
@@ -47,6 +49,7 @@ class HttpExpose extends Command
         $socket->connect($listen)->then(function (ConnectionInterface $connection) use ($loop) {
 
             $this->output->note("Connected to " . $connection->getRemoteAddress());
+
             $connection->on('data', function ($request) use ($connection) {
 
                 $this->verbose("Incoming request from outside...");
@@ -59,13 +62,15 @@ class HttpExpose extends Command
         })->otherwise(function($exception) {
 
             /** @var \RuntimeException $exception */
-            $this->output->error("The tunnel seems offline at this moment. Try again later."
-                . $this->verbose("\n" . $exception->getMessage()));
+            $this->verbose("\n" . $exception->getMessage());
+            $this->output->error("The tunnel seems offline at this moment. Try again later.");
+
+            return 1;
         });
 
         $loop->run();
 
-        return 1;
+        return 0;
     }
 
     /**
@@ -77,27 +82,41 @@ class HttpExpose extends Command
         $request = $this->tamper($request);
 
         $loop = \React\EventLoop\Factory::create();
-        $webserver = new \React\Socket\Connector($loop);
+        $webserver = new \React\Socket\Connector($loop, ['timeout' => 30]);
         $webserver->connect('127.0.0.1:80')
-            ->then(function (ConnectionInterface $webserver) use ($loop, $request, $socket) {
+            ->then(function (ConnectionInterface $webserver) use ($request, $socket) {
 
                 $this->buffer = new Buffer();
-
-                $this->output->writeln(HttpRequest::raw($request)->logFormat());
-                $this->verbose("Successfully connected to the webserver...");
+                $httpRequest = HttpRequest::raw($request);
+                $this->output->writeln($httpRequest->logFormat());
+                $this->verbose("\n" . $request, true);
 
                 $webserver->write($request);
-                $webserver->on('data', function ($response) use ($webserver, $socket) {
 
+                $webserver->on('data', function ($chunk) use ($webserver, $socket) {
                     // Forward webserver response to the socket
-                    $this->buffer->add($response);
+                    $this->buffer->add($chunk);
+                    $socket->write($chunk);
 
                     // Was this the last chunk?
-                    if (substr(trim($response), -1) === '0') {
-                        $socket->write($this->buffer->read());
+                    if ($this->buffer->reached($contentLength ?? null) || Str::endsWith($chunk, "0\r\n\r\n")) {
+                        $response = HttpResponse::raw($this->buffer->read());
+                        $webserver->end();
                         $webserver->close();
+
+                        $this->buffer->clear();
+
+                        var_dump($response->getResponse()->getBody()->getContents());
+                        $this->verbose("Last chunk received...");
                     }
                 });
+            })->otherwise(function($exception) {
+
+                /** @var \RuntimeException $exception */
+                $this->verbose("\n" . $exception->getMessage());
+                $this->output->error("The webserver offline?");
+
+                return 1;
             });
 
         $loop->run();
@@ -118,13 +137,14 @@ class HttpExpose extends Command
 
     /**
      * @param string $message
+     * @param bool   $raw
      */
-    protected function verbose(string $message)
+    protected function verbose(string $message, bool $raw = false)
     {
         if ($this->getOutput()->getVerbosity() < OutputInterface::VERBOSITY_VERBOSE) {
             return;
         }
 
-        $this->output->comment($message);
+        $raw ? $this->output->write($message) : $this->output->comment($message);
     }
 }
