@@ -121,7 +121,7 @@ class HttpExpose extends Command
      */
     protected function verbose(string $message)
     {
-        if (!$this->getOutput()->getVerbosity() >= OutputInterface::VERBOSITY_VERBOSE) {
+        if ($this->getOutput()->getVerbosity() < OutputInterface::VERBOSITY_VERBOSE) {
             return;
         }
 
