@@ -97,17 +97,16 @@ class HttpExpose extends Command
                     // Forward webserver response to the socket
                     $this->buffer->add($chunk);
                     $socket->write($chunk);
+//                    $this->output->writeln("Next chunk...\n" . substr($chunk, 0, 50));
 
                     // Was this the last chunk?
-                    if ($this->buffer->reached($contentLength ?? null) || Str::endsWith($chunk, "0\r\n\r\n")) {
-                        $response = HttpResponse::raw($this->buffer->read());
+                    if (stristr($chunk, "Not Modified") || $this->buffer->reached($contentLength ?? null) || Str::endsWith($chunk, "0\r\n\r\n")) {
                         $webserver->end();
                         $webserver->close();
 
-                        $this->buffer->clear();
+                        $this->output->writeln(HttpResponse::raw($this->buffer->read())->logFormat());
 
-                        var_dump($response->getResponse()->getBody()->getContents());
-                        $this->verbose("Last chunk received...");
+                        $this->buffer->clear();
                     }
                 });
             })->otherwise(function($exception) {
