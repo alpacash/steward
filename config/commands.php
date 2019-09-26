@@ -73,7 +73,10 @@ return [
     |
     */
 
-    'remove' => collect([\App\Commands\AppDeploy::class])->filter(function() {
+    'remove' => collect([
+        \App\Commands\AppDeploy::class,
+        \App\Commands\ExposeListen::class
+    ])->filter(function() {
         return config('app.production') === true;
     })->toArray()
 
