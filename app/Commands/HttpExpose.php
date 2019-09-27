@@ -54,14 +54,14 @@ class HttpExpose extends Command
 
             $this->output->note("Connected to " . $connection->getRemoteAddress());
 
-            $connection->once('data', function ($request) use ($connection) {
+            $connection->on('data', function ($request) use ($connection) {
 
                 $this->verbose("Incoming request from outside...");
 
                 // When we receive data from the socket it is a forwarded http request.
                 // So we will forward this request to our local webserver and then reply with
                 // the webserver's response.
-                $this->forward(unserialize($request), $connection);
+                $this->proxy(unserialize($request), $connection);
             });
         })->otherwise(function($exception) {
 
@@ -83,7 +83,7 @@ class HttpExpose extends Command
      *
      * @throws \GuzzleHttp\Exception\GuzzleException
      */
-    protected function forward(TunnelRequest $tunnel, ConnectionInterface $socket)
+    protected function proxy(TunnelRequest $tunnel, ConnectionInterface $socket)
     {
         $request = $tunnel->getRequest();
         $this->output->note("Tunneling request " . $tunnel->getClient()
