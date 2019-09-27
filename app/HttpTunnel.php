@@ -84,14 +84,14 @@ class HttpTunnel
                     $server->on('end', function() use ($resolve, $buffer) {
                         $resolve(\GuzzleHttp\Psr7\parse_response($buffer->read()));
                     });
-//
-//                    $server->on('error', function() use ($resolve, $buffer) {
-//                        $resolve(new Response(500, [], $buffer->read()));
-//                    });
-//
-//                    $server->on('close', function() use ($resolve, $buffer) {
-//                        $resolve(new Response(200, [], $buffer->read()));
-//                    });
+
+                    $server->on('error', function() use ($resolve, $buffer) {
+                        $resolve(new Response(500, [], $buffer->read()));
+                    });
+
+                    $server->on('close', function() use ($resolve, $buffer) {
+                        $resolve(new Response(200, [], $buffer->read()));
+                    });
                 });
             }
         );
