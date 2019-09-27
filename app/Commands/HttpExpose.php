@@ -62,11 +62,14 @@ class HttpExpose extends Command
             /** @var \RuntimeException $exception */
             $this->verbose("\n" . $exception->getMessage());
             $this->output->error("The tunnel seems offline at this moment. Try again later.");
-
-            return 1;
+            $this->stop = true;
         });
 
         $loop->run();
+
+        if (empty($this->stop)) {
+            $this->handle();
+        }
 
         return 0;
     }
@@ -89,9 +92,8 @@ class HttpExpose extends Command
         try {
             $response = (new Client())->request(
                 $request->getMethod(),
-                'http://127.0.0.1', [
+                    (string)$request->getUri(), [
                     'http_errors' => false,
-                    'query' => $request->getUri()->getQuery(),
                     'body' => $request->getBody(),
                     'headers' => $headers,
                     'version' => $request->getProtocolVersion()
@@ -106,7 +108,7 @@ class HttpExpose extends Command
 
         $this->output->note($response->getStatusCode() . " " . $response->getReasonPhrase());
 
-        $socket->write(\GuzzleHttp\Psr7\str($response));
+        $socket->end(\GuzzleHttp\Psr7\str($response));
     }
 
     /**

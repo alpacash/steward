@@ -67,11 +67,15 @@ class ExposeListen extends Command
             $this->output->note("New connection from {$server->getRemoteAddress()} => "
                 . $server->getLocalAddress());
 
+            $server->on('close', function() use ($tunnel) {
+                $tunnel->removeServer('tmp');
+            });
+
+            $server->on('error', function() use ($tunnel) {
+                $tunnel->removeServer('tmp');
+            });
+
             $tunnel->addServer('tmp', $server);
-        })->on('close', function() use ($tunnel) {
-            $tunnel->removeServer('tmp');
-        })->on('error', function() use ($tunnel) {
-            $tunnel->removeServer('tmp');
         });
 
         $loop->run();

@@ -9,6 +9,7 @@ use React\Http\Server as HttpServer;
 use React\Promise\Promise;
 use React\Socket\ConnectionInterface;
 use React\Socket\Server as SocketServer;
+use function RingCentral\Psr7\parse_response;
 
 class HttpTunnel
 {
@@ -59,24 +60,38 @@ class HttpTunnel
 
                 // Wait for the server to send back our web page...
                 return new Promise(function ($resolve, $reject) use ($server) {
-                    $server->once('data', function ($data) use ($resolve, $reject) {
+                    $buffer = new Buffer();
 
-                        if ($data === "====stew-proceed====") {
-                            return $resolve(new Response(200), [], "Thank you, server.");
-                        }
-
-                        $response = \GuzzleHttp\Psr7\parse_response($data);
-
-                        if (empty($response)) {
-                            return $reject();
-                        }
-
-                        try {
-                            return $resolve($response);
-                        } catch (\Exception $e) {
-                            return $reject();
-                        }
+                    $server->on('data', function ($chunk) use ($resolve, $reject, $buffer) {
+                        $buffer->add($chunk);
+//                        if ($chunk === "====stew-proceed====") {
+//                            return $resolve(new Response(200), [], "Thank you, server.");
+//                        }
+//
+//                        $response = \GuzzleHttp\Psr7\parse_response($chunk);
+//
+//                        if (empty($response)) {
+//                            return $reject();
+//                        }
+//
+//                        try {
+//                            return $resolve($response);
+//                        } catch (\Exception $e) {
+//                            return $reject();
+//                        }
                     });
+
+                    $server->on('end', function() use ($resolve, $buffer) {
+                        $resolve(\GuzzleHttp\Psr7\parse_response($buffer->read()));
+                    });
+//
+//                    $server->on('error', function() use ($resolve, $buffer) {
+//                        $resolve(new Response(500, [], $buffer->read()));
+//                    });
+//
+//                    $server->on('close', function() use ($resolve, $buffer) {
+//                        $resolve(new Response(200, [], $buffer->read()));
+//                    });
                 });
             }
         );
@@ -94,6 +109,13 @@ class HttpTunnel
      */
     public function addServer(string $key, ConnectionInterface $connection)
     {
+        /** @var ConnectionInterface $oldserver */
+        if (!empty($this->connections[$key])
+            && ($oldserver = $this->connections[$key]) instanceof ConnectionInterface) {
+            $oldserver->end();
+            $oldserver->close();
+        }
+
         $this->connections[$key] = $connection;
     }
 
@@ -105,6 +127,9 @@ class HttpTunnel
     public function removeServer(string $key)
     {
         if (isset($this->connections[$key])) {
+            $this->connections[$key]->end();
+            $this->connections[$key]->close();
+
             unset($this->connections[$key]);
         }
 
