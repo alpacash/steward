@@ -2,6 +2,7 @@
 
 namespace App\Commands;
 
+use App\TunnelRequest;
 use GuzzleHttp\Client;
 use function GuzzleHttp\Psr7\str;
 use LaravelZero\Framework\Commands\Command;
@@ -56,7 +57,7 @@ class HttpExpose extends Command
                 // When we receive data from the socket it is a forwarded http request.
                 // So we will forward this request to our local webserver and then reply with
                 // the webserver's response.
-                $this->proxy(\GuzzleHttp\Psr7\parse_request($request), $connection);
+                $this->proxy(unserialize($request), $connection);
             });
         })->otherwise(function($exception) {
 
@@ -76,13 +77,15 @@ class HttpExpose extends Command
     }
 
     /**
-     * @param \Psr\Http\Message\RequestInterface $request
-     * @param \React\Socket\ConnectionInterface  $socket
+     * @param \App\TunnelRequest                $tunnel
+     * @param \React\Socket\ConnectionInterface $socket
      *
      * @throws \GuzzleHttp\Exception\GuzzleException
      */
-    protected function proxy(RequestInterface $request, ConnectionInterface $socket)
+    protected function proxy(TunnelRequest $tunnel, ConnectionInterface $socket)
     {
+        $request = $tunnel->getRequest();
+
         echo "Request hash:\n" . md5(str($request)) . "\n";
 
         $this->output->note("Tunneling request " . $request->getRequestTarget()
@@ -108,7 +111,9 @@ class HttpExpose extends Command
                 ]
             );
             $this->output->success("Executed http request to local webserver <= {$response->getStatusCode()}");
-            $socket->end(\GuzzleHttp\Psr7\str($response));
+
+            // DIT HIER GAAT HET HEM DOEN
+            $socket->end("===stew-response-chunk-for:{$tunnel->getId()}===\r\n");
             $this->output->success("Socket closed... New cycle...");
         } catch (\Exception $e) {
             $this->output->error($e->getMessage());
