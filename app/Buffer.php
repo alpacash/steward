@@ -2,6 +2,10 @@
 
 namespace App;
 
+use function GuzzleHttp\Psr7\parse_request;
+use function GuzzleHttp\Psr7\parse_response;
+use GuzzleHttp\Psr7\Response;
+
 class Buffer
 {
     /**
@@ -24,7 +28,7 @@ class Buffer
      *
      * @return self
      */
-    public function add(string $data)
+    public function chunk(string $data)
     {
         $this->buffer .= $data;
 
@@ -42,11 +46,43 @@ class Buffer
     }
 
     /**
+     * @param bool $clear
+     *
      * @return string
      */
-    public function read()
+    public function read($clear = false)
     {
-        return $this->buffer;
+        $b = $this->buffer;
+
+        if ($clear) {
+            $this->clear();
+        }
+
+        return $b;
+    }
+
+    /**
+     * @return false|\App\TunnelResponse
+     */
+    public function tunnelResponse()
+    {
+        try {
+            return unserialize($this->read());
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * @return false|\App\TunnelRequest
+     */
+    public function tunnelRequest()
+    {
+        try {
+            return unserialize($this->read());
+        } catch (\Exception $e) {
+            return false;
+        }
     }
 
     /**

@@ -22,18 +22,36 @@ class TunnelRequest
     protected $request;
 
     /**
+     * @var string
+     */
+    protected $id;
+
+    /**
+     * @var callable
+     */
+    protected $resolver;
+
+    /**
+     * @var callable
+     */
+    protected $rejecter;
+
+    /**
      * TunnelPackage constructor.
      *
+     * @param string                             $id
      * @param array                              $serverParams
      * @param \Psr\Http\Message\RequestInterface $request
      */
     public function __construct(
+        string $id,
         array $serverParams,
         RequestInterface $request
     ) {
         $this->client = $serverParams['REMOTE_ADDR'] ?? '';
         $this->port = $serverParams['REMOTE_PORT'] ?? '';
         $this->request = $request;
+        $this->id = md5($id . serialize($request));
     }
 
     /**
@@ -63,8 +81,56 @@ class TunnelRequest
     /**
      * @return string
      */
+    public function getId(): string
+    {
+        return $this->id;
+    }
+
+    /**
+     * @return string
+     */
     public function __toString()
     {
         return serialize($this);
+    }
+
+    /**
+     * @param callable $resolver
+     *
+     * @return TunnelRequest
+     */
+    public function setResolver(callable $resolver): TunnelRequest
+    {
+        $this->resolver = $resolver;
+
+        return $this;
+    }
+
+    /**
+     * @param callable $rejecter
+     *
+     * @return TunnelRequest
+     */
+    public function setRejecter(callable $rejecter): TunnelRequest
+    {
+        $this->rejecter = $rejecter;
+
+        return $this;
+    }
+
+    /**
+     * @return callable
+     */
+    public function getResolver(): callable
+    {
+        return $this->resolver;
+    }
+
+    /**
+     * @return callable
+     */
+    public function getRejecter(): callable
+    {
+        return $this->rejecter;
     }
 }

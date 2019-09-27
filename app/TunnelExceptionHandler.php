@@ -27,6 +27,7 @@ class TunnelExceptionHandler
      */
     public function __invoke(\Exception $exception)
     {
-        $this->output->error($exception . " on " . $exception->getFile() . ":" . $exception->getLine());
+        $this->output->error("Http exception");
+//        $this->output->error($exception . " on " . $exception->getFile() . ":" . $exception->getLine());
     }
 }

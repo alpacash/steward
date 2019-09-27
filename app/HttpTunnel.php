@@ -3,18 +3,18 @@
 namespace App;
 
 use GuzzleHttp\Psr7\Response;
+use Illuminate\Support\Str;
 use Psr\Http\Message\ServerRequestInterface;
 use React\EventLoop\LoopInterface;
 use React\Http\Server as HttpServer;
 use React\Promise\Promise;
 use React\Socket\ConnectionInterface;
 use React\Socket\Server as SocketServer;
-use function RingCentral\Psr7\parse_response;
 
 class HttpTunnel
 {
     /**
-     * @var ConnectionInterface[]
+     * @var callable[][]
      */
     protected $connections = [];
 
@@ -22,6 +22,19 @@ class HttpTunnel
      * @var callable
      */
     protected $errorHandler;
+
+    /**
+     * @var \App\BufferPool
+     */
+    protected $bufferpool;
+
+    /**
+     * HttpTunnel constructor.
+     */
+    public function __construct()
+    {
+        $this->bufferpool = new BufferPool();
+    }
 
     /**
      * @param \React\EventLoop\LoopInterface $loop
@@ -45,53 +58,27 @@ class HttpTunnel
                 $target = (string)$static->withHost('')->withPort(null)
                     ?: $request->getMethod() === 'OPTIONS' ? '*' : '/';
 
-                $tunnel = new TunnelRequest(
+                $request = new TunnelRequest(
+                    Str::random(20),
                     $request->getServerParams(),
                     $request->withRequestTarget($target)->withHeader('Host', $host)
                 );
 
-                $server = $this->requestOwner($tunnel);
-
-                if (empty($server) || ! $server->isWritable()) {
-                    return new Response(500, [], "There is no controller available for this request.");
-                }
-
-                $server->write(\GuzzleHttp\Psr7\str($request));
-
                 // Wait for the server to send back our web page...
-                return new Promise(function ($resolve, $reject) use ($server) {
-                    $buffer = new Buffer();
+                return new Promise(function ($resolve, $reject) use ($request) {
 
-                    $server->on('data', function ($chunk) use ($resolve, $reject, $buffer) {
-                        $buffer->add($chunk);
-//                        if ($chunk === "====stew-proceed====") {
-//                            return $resolve(new Response(200), [], "Thank you, server.");
-//                        }
-//
-//                        $response = \GuzzleHttp\Psr7\parse_response($chunk);
-//
-//                        if (empty($response)) {
-//                            return $reject();
-//                        }
-//
-//                        try {
-//                            return $resolve($response);
-//                        } catch (\Exception $e) {
-//                            return $reject();
-//                        }
-                    });
+                    $controller = $this->findControllerForRequest($request);
 
-                    $server->on('end', function() use ($resolve, $buffer) {
-                        $resolve(\GuzzleHttp\Psr7\parse_response($buffer->read()));
-                    });
+                    if (empty($controller) || ! $controller->isWritable()) {
+                        return $resolve(
+                            new Response(500, [], "There is no controller available for this request.")
+                        );
+                    }
 
-                    $server->on('error', function() use ($resolve, $buffer) {
-                        $resolve(new Response(500, [], $buffer->read()));
-                    });
+                    $request->setResolver($resolve)->setRejecter($reject);
 
-                    $server->on('close', function() use ($resolve, $buffer) {
-                        $resolve(new Response(200, [], $buffer->read()));
-                    });
+                    // Send the request from the browser to the local host.
+                    $controller->write((string)$request);
                 });
             }
         );
@@ -141,18 +128,43 @@ class HttpTunnel
      *
      * @return ConnectionInterface|null
      */
-    public function requestOwner(TunnelRequest $request)
+    public function findControllerForRequest(TunnelRequest $request)
     {
         /** @var ConnectionInterface $server */
-        $server = current($this->connections ?: []);
+        $controller = current($this->connections ?: []);
 
-        if (! $server instanceof ConnectionInterface) {
+        if (! $controller instanceof ConnectionInterface) {
             return null;
         }
 
-        if (is_callable($this->errorHandler)) {
-            $server->on('error', $this->errorHandler);
-        }
+        $buffer = $this->bufferpool->create($request);
+
+        $controller->on('error', function(\Exception $e) use ($request, $buffer) {
+            $buffer->clear();
+            ${$request->getRejecter()}(new Response(500, [], $e->getMessage()));
+        });
+
+        // When we receive a chunk of data, we will send it to the appropriate buffer.
+        $controller->on('data', function ($chunk) use ($buffer) {
+
+            // =============== ALERT ALERT ALERT ALERT ===========================
+            // Buffer is alleen voor dit request, maar de data misschien niet...
+            // We moeten hier zien te achterhalen voor welk request de data is en
+            // dus op welke buffer die hoort...
+            $buffer->chunk($chunk);
+        });
+
+        // This response's destination could be anything we asked for,
+        // thus we have to find out what it is for.
+        $controller->on('end', function() use ($request, $buffer) {
+
+            $response = $buffer->tunnelResponse();
+            ${$request->getResolver()}($response->getResponse());
+        });
+
+        $controller->on('close', function() use ($buffer, $request) {
+            ${$request->getResolver()}($buffer->tunnelResponse()->getResponse());
+        });
 
         return $server;
     }

@@ -3,6 +3,7 @@
 namespace App\Commands;
 
 use GuzzleHttp\Client;
+use function GuzzleHttp\Psr7\str;
 use LaravelZero\Framework\Commands\Command;
 use Psr\Http\Message\RequestInterface;
 use React\Socket\ConnectionInterface;
@@ -82,6 +83,8 @@ class HttpExpose extends Command
      */
     protected function proxy(RequestInterface $request, ConnectionInterface $socket)
     {
+        echo "Request hash:\n" . md5(str($request)) . "\n";
+
         $this->output->note("Tunneling request " . $request->getRequestTarget()
             . " => " . $request->getUri()->getHost());
 
@@ -90,25 +93,29 @@ class HttpExpose extends Command
         $headers['Host'][0] = substr($originalHost, 0, strpos($originalHost, ':') ?: strlen($originalHost));
 
         try {
+            $this->output->note("Executing http request to local webserver => {$request->getUri()}");
+            $uri = $request->getUri();
+            $uri = $uri->getScheme() . "://" . $uri->getHost() . $uri->getPath() . $uri->getQuery();
+
+            echo (string)$uri;
             $response = (new Client())->request(
                 $request->getMethod(),
-                    (string)$request->getUri(), [
+                    $uri, [
                     'http_errors' => false,
                     'body' => $request->getBody(),
                     'headers' => $headers,
                     'version' => $request->getProtocolVersion()
                 ]
             );
+            $this->output->success("Executed http request to local webserver <= {$response->getStatusCode()}");
+            $socket->end(\GuzzleHttp\Psr7\str($response));
+            $this->output->success("Socket closed... New cycle...");
         } catch (\Exception $e) {
             $this->output->error($e->getMessage());
             $socket->write('====stew-proceed====');
 
             return;
         }
-
-        $this->output->note($response->getStatusCode() . " " . $response->getReasonPhrase());
-
-        $socket->end(\GuzzleHttp\Psr7\str($response));
     }
 
     /**
