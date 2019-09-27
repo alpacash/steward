@@ -2,13 +2,7 @@
 
 namespace App\Commands;
 
-use App\Buffer;
-use App\HttpRequest;
-use App\HttpResponse;
-use App\TunnelRequest;
 use GuzzleHttp\Client;
-use GuzzleHttp\Psr7\Response;
-use Illuminate\Support\Str;
 use LaravelZero\Framework\Commands\Command;
 use Psr\Http\Message\RequestInterface;
 use React\Socket\ConnectionInterface;
@@ -61,7 +55,7 @@ class HttpExpose extends Command
                 // When we receive data from the socket it is a forwarded http request.
                 // So we will forward this request to our local webserver and then reply with
                 // the webserver's response.
-                $this->proxy(unserialize($request), $connection);
+                $this->proxy(\GuzzleHttp\Psr7\parse_request($request), $connection);
             });
         })->otherwise(function($exception) {
 
@@ -78,27 +72,37 @@ class HttpExpose extends Command
     }
 
     /**
-     * @param \App\TunnelRequest                $tunnel
-     * @param \React\Socket\ConnectionInterface $socket
+     * @param \Psr\Http\Message\RequestInterface $request
+     * @param \React\Socket\ConnectionInterface  $socket
      *
      * @throws \GuzzleHttp\Exception\GuzzleException
      */
-    protected function proxy(TunnelRequest $tunnel, ConnectionInterface $socket)
+    protected function proxy(RequestInterface $request, ConnectionInterface $socket)
     {
-        $request = $tunnel->getRequest();
-        $this->output->note("Tunneling request " . $tunnel->getClient()
+        $this->output->note("Tunneling request " . $request->getRequestTarget()
             . " => " . $request->getUri()->getHost());
 
-        $response = (new Client())->request(
-            $request->getMethod(),
-            'http://127.0.0.1', [
-                'http_errors' => false,
-                'query' => $request->getUri()->getQuery(),
-                'body' => $request->getBody()->getContents(),
-                'headers' => $request->getHeaders(),
-                'version' => $request->getProtocolVersion()
-            ]
-        );
+        $headers = $request->getHeaders();
+        $originalHost = $headers['Host'][0];
+        $headers['Host'][0] = substr($originalHost, 0, strpos($originalHost, ':') ?: strlen($originalHost));
+
+        try {
+            $response = (new Client())->request(
+                $request->getMethod(),
+                'http://127.0.0.1', [
+                    'http_errors' => false,
+                    'query' => $request->getUri()->getQuery(),
+                    'body' => $request->getBody(),
+                    'headers' => $headers,
+                    'version' => $request->getProtocolVersion()
+                ]
+            );
+        } catch (\Exception $e) {
+            $this->output->error($e->getMessage());
+            $socket->write('====stew-proceed====');
+
+            return;
+        }
 
         $this->output->note($response->getStatusCode() . " " . $response->getReasonPhrase());
 

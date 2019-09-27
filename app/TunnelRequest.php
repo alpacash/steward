@@ -31,8 +31,8 @@ class TunnelRequest
         array $serverParams,
         RequestInterface $request
     ) {
-        $this->client = $serverParams['REMOTE_ADDR'];
-        $this->port = $serverParams['REMOTE_PORT'];
+        $this->client = $serverParams['REMOTE_ADDR'] ?? '';
+        $this->port = $serverParams['REMOTE_PORT'] ?? '';
         $this->request = $request;
     }
 

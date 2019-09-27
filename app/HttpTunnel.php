@@ -44,26 +44,37 @@ class HttpTunnel
                 $target = (string)$static->withHost('')->withPort(null)
                     ?: $request->getMethod() === 'OPTIONS' ? '*' : '/';
 
-                $request = new TunnelRequest(
+                $tunnel = new TunnelRequest(
                     $request->getServerParams(),
                     $request->withRequestTarget($target)->withHeader('Host', $host)
                 );
 
-                $server = $this->requestOwner($request);
+                $server = $this->requestOwner($tunnel);
 
                 if (empty($server) || ! $server->isWritable()) {
                     return new Response(500, [], "There is no controller available for this request.");
                 }
 
-                $server->write((string)$request);
+                $server->write(\GuzzleHttp\Psr7\str($request));
 
                 // Wait for the server to send back our web page...
                 return new Promise(function ($resolve, $reject) use ($server) {
                     $server->once('data', function ($data) use ($resolve, $reject) {
+
+                        if ($data === "====stew-proceed====") {
+                            return $resolve(new Response(200), [], "Thank you, server.");
+                        }
+
+                        $response = \GuzzleHttp\Psr7\parse_response($data);
+
+                        if (empty($response)) {
+                            return $reject();
+                        }
+
                         try {
-                            $resolve(\GuzzleHttp\Psr7\parse_response($data));
+                            return $resolve($response);
                         } catch (\Exception $e) {
-                            $reject();
+                            return $reject();
                         }
                     });
                 });
