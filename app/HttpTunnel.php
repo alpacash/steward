@@ -31,42 +31,44 @@ class HttpTunnel
     public function listen(LoopInterface $loop, callable $proceed = null)
     {
 
-        $http = new HttpServer(function (ServerRequestInterface $request) use ($proceed) {
+        $http = new HttpServer(
+            function (ServerRequestInterface $request) use ($proceed) {
 
-            if (is_callable($proceed)) {
-                $proceed($request);
-            }
+                if (is_callable($proceed)) {
+                    $proceed($request);
+                }
 
-            $static = $request->getUri()->withScheme('');
+                $static = $request->getUri()->withScheme('');
 
-            $host = (string)$static->withPath('')->withQuery('');
-            $target = (string)$static->withHost('')->withPort(null)
-                ?: $request->getMethod() === 'OPTIONS' ? '*' : '/';
+                $host = (string)$static->withPath('')->withQuery('');
+                $target = (string)$static->withHost('')->withPort(null)
+                    ?: $request->getMethod() === 'OPTIONS' ? '*' : '/';
 
-            $request = new TunnelRequest(
-                $request->getServerParams(),
-                $request->withRequestTarget($target)->withHeader('Host', $host)
-            );
+                $request = new TunnelRequest(
+                    $request->getServerParams(),
+                    $request->withRequestTarget($target)->withHeader('Host', $host)
+                );
 
-            $server = $this->requestOwner($request);
+                $server = $this->requestOwner($request);
 
-            if (empty($server) || ! $server->isWritable()) {
-                return new Response(500, [], "There is no controller available for this request.");
-            }
+                if (empty($server) || ! $server->isWritable()) {
+                    return new Response(500, [], "There is no controller available for this request.");
+                }
 
-            $server->write((string)$request);
+                $server->write((string)$request);
 
-            // Wait for the server to send back our web page...
-            return new Promise(function ($resolve, $reject) use ($server) {
-                $server->once('data', function ($data) use ($resolve, $reject) {
-                    try {
-                        $resolve(\GuzzleHttp\Psr7\parse_response($data));
-                    } catch (\Exception $e) {
-                        $reject();
-                    }
+                // Wait for the server to send back our web page...
+                return new Promise(function ($resolve, $reject) use ($server) {
+                    $server->once('data', function ($data) use ($resolve, $reject) {
+                        try {
+                            $resolve(\GuzzleHttp\Psr7\parse_response($data));
+                        } catch (\Exception $e) {
+                            $reject();
+                        }
+                    });
                 });
-            });
-        });
+            }
+        );
 
         $http->on('error', $this->errorHandler);
 
@@ -82,6 +84,20 @@ class HttpTunnel
     public function addServer(string $key, ConnectionInterface $connection)
     {
         $this->connections[$key] = $connection;
+    }
+
+    /**
+     * @param string $key
+     *
+     * @return self
+     */
+    public function removeServer(string $key)
+    {
+        if (isset($this->connections[$key])) {
+            unset($this->connections[$key]);
+        }
+
+        return $this;
     }
 
     /**

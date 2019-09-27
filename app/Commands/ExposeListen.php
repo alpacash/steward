@@ -54,6 +54,7 @@ class ExposeListen extends Command
     protected function listen()
     {
         $loop = Factory::create();
+
         $tunnel = (new \App\HttpTunnel())->setErrorHandler(
             new TunnelExceptionHandler($this->output)
         )->listen($loop, function(RequestInterface $request) {
@@ -67,6 +68,10 @@ class ExposeListen extends Command
                 . $server->getLocalAddress());
 
             $tunnel->addServer('tmp', $server);
+        })->on('close', function() use ($tunnel) {
+            $tunnel->removeServer('tmp');
+        })->on('error', function() use ($tunnel) {
+            $tunnel->removeServer('tmp');
         });
 
         $loop->run();
