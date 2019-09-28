@@ -26,11 +26,12 @@ class BufferPool
      */
     public function chunk($chunk)
     {
-        $header = substr(substr($chunk, 0, strpos($chunk, "===\r\n")), 3);
+        $header = substr(substr($chunk, 0, strpos($chunk, ":/===\r\n")), 3);
         $requestId = last(explode(':', $header));
 
         if (!isset($this->buffers[$requestId])
             || !$this->buffers[$requestId] instanceof Buffer) {
+            var_dump([$requestId]); exit;
             return new Buffer();
         }
 

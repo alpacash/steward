@@ -65,14 +65,9 @@ class HttpExpose extends Command
             /** @var \RuntimeException $exception */
             $this->verbose("\n" . $exception->getMessage());
             $this->output->error("The tunnel seems offline at this moment. Try again later.");
-            $this->stop = true;
         });
 
         $loop->run();
-
-        if (empty($this->stop)) {
-            $this->handle();
-        }
 
         return 0;
     }
@@ -113,16 +108,45 @@ class HttpExpose extends Command
             );
             $this->output->success("Executed http request to local webserver <= {$response->getStatusCode()}");
 
-            // DIT HIER GAAT HET HEM DOEN
             $response = new TunnelResponse($tunnel->getId(), $response);
-            $socket->end("===stew-response-chunk-for:{$tunnel->getId()}===\r\n" . serialize($response));
-            $this->output->success("Socket closed... New cycle...");
+
+            // DIT HIER GAAT HET HEM DOEN
+            $chunks = $this->buildRawChunks($tunnel, $response);
+            foreach ($chunks as $chunk) {
+                $socket->write($chunk);
+                usleep(100);
+            }
+            $socket->end();
         } catch (\Exception $e) {
             $this->output->error($e->getMessage());
             $socket->write('====stew-proceed====');
 
             return;
         }
+    }
+
+    protected function buildRawChunks(TunnelRequest $tunnel, TunnelResponse $response)
+    {
+        $chunks = str_split(serialize($response), 500);
+
+        foreach ($chunks as $i => $chunk) {
+            $result[] = $this->buildRawChunk($tunnel->getId(), $chunk);
+        }
+
+        return $result ?? [];
+    }
+
+    /**
+     * @param string $requestId
+     * @param string $chunk
+     *
+     * @return string
+     */
+    protected function buildRawChunk($requestId, string $chunk)
+    {
+        return "===stew-response-chunk-for:{$requestId}:/===\r\n"
+            . $chunk . "\r\n"
+            . "===stew-response-end===\r\n";
     }
 
     /**

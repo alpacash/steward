@@ -69,17 +69,16 @@ class Buffer
         try {
             $response = $this->read();
             $response = substr($response, strpos($response, "===\r\n") + 5);
-
-            echo substr($response, 0, 400) . "\n\n";
+            $response = str_replace("\r\n===stew-response-end===", "", $response);
 
             /** @var \App\TunnelResponse $s */
             $s = unserialize($response);
 
-            echo "aaaaa\n" . $s->getRequestId() . "\n";
+//            echo "aaaaa\n" . $s->getRequestId() . "\n";
 
             return $s;
         } catch (\Exception $e) {
-            return new TunnelResponse(str_random(12), new Response(200, [], $e->getMessage()));
+            return new TunnelResponse(str_random(12), new Response(200, [], $response . " " . $e->getMessage()));
         }
     }
 

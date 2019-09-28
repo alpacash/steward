@@ -75,16 +75,28 @@ class HttpTunnel
                         );
                     }
 
+                    $controller->removeAllListeners();
+
                     $buffer = $this->bufferpool->create($request);
 
                     // When we receive a chunk of data, we will send it to the appropriate buffer.
-                    $controller->on('data', function ($chunk) {
+                    $controller->on('data', function ($chunk) use ($controller) {
 
                         // =============== ALERT ALERT ALERT ALERT ===========================
                         // Buffer is alleen voor dit request, maar de data misschien niet...
                         // We moeten hier zien te achterhalen voor welk request de data is en
                         // dus op welke buffer die hoort...
+                        //
+                        //
+                        // ERROR: OOK AL DOEN WE HANDMATIG CHUNKS MAKEN
+                        // DEZE SHIT HEEFT COMPLEET SCHIJT AAN ONS
+                        // EN WORDT CHAOS HIERZO.
+
                         $this->bufferpool->chunk($chunk);
+                        echo "\n\n===GOT CHUNK ... \n\n" . substr($chunk, 0, 400) . "\n\n";
+                        if (Str::endsWith($chunk, "===stew-response-end===")) {
+                            $controller->emit('end');
+                        }
                     });
 
                     $controller->on('error', function(\Exception $e) use ($reject, $buffer) {
@@ -95,14 +107,10 @@ class HttpTunnel
                     // This response's destination could be anything we asked for,
                     // thus we have to find out what it is for.
                     $controller->on('end', function() use ($resolve, $buffer) {
-                        // return $resolver(new Response(200));
-                        echo "end\n";
                         return $resolve($buffer->tunnelResponse()->getResponse());
                     });
 
                     $controller->on('close', function() use ($buffer, $request, $resolve) {
-                        echo "close\n";
-                        // return $resolver(new Response(200));
                         return $resolve($buffer->tunnelResponse()->getResponse());
                     });
 
@@ -165,8 +173,6 @@ class HttpTunnel
         if (! $controller instanceof ConnectionInterface) {
             return null;
         }
-
-        $controller->removeAllListeners();
 
         return $controller;
     }
