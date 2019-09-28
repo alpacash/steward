@@ -3,6 +3,7 @@
 namespace App\Commands;
 
 use App\TunnelRequest;
+use App\TunnelResponse;
 use GuzzleHttp\Client;
 use function GuzzleHttp\Psr7\str;
 use LaravelZero\Framework\Commands\Command;
@@ -113,7 +114,8 @@ class HttpExpose extends Command
             $this->output->success("Executed http request to local webserver <= {$response->getStatusCode()}");
 
             // DIT HIER GAAT HET HEM DOEN
-            $socket->end("===stew-response-chunk-for:{$tunnel->getId()}===\r\n");
+            $response = new TunnelResponse($tunnel->getId(), $response);
+            $socket->end("===stew-response-chunk-for:{$tunnel->getId()}===\r\n" . serialize($response));
             $this->output->success("Socket closed... New cycle...");
         } catch (\Exception $e) {
             $this->output->error($e->getMessage());

@@ -52,6 +52,8 @@ class TunnelRequest
         $this->port = $serverParams['REMOTE_PORT'] ?? '';
         $this->request = $request;
         $this->id = md5($id . serialize($request));
+        $this->resolver = function () { return true; };
+        $this->rejecter = function () { return true; };
     }
 
     /**
@@ -91,6 +93,9 @@ class TunnelRequest
      */
     public function __toString()
     {
+        unset ($this->resolver);
+        unset ($this->rejecter);
+
         return serialize($this);
     }
 
@@ -121,16 +126,16 @@ class TunnelRequest
     /**
      * @return callable
      */
-    public function getResolver(): callable
+    public function getResolver(): ?callable
     {
-        return $this->resolver;
+        return $this->resolver ?? null;
     }
 
     /**
      * @return callable
      */
-    public function getRejecter(): callable
+    public function getRejecter(): ?callable
     {
-        return $this->rejecter;
+        return $this->rejecter ?? null;
     }
 }

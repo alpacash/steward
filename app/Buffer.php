@@ -67,21 +67,19 @@ class Buffer
     public function tunnelResponse()
     {
         try {
-            return unserialize($this->read());
-        } catch (\Exception $e) {
-            return false;
-        }
-    }
+            $response = $this->read();
+            $response = substr($response, strpos($response, "===\r\n") + 5);
 
-    /**
-     * @return false|\App\TunnelRequest
-     */
-    public function tunnelRequest()
-    {
-        try {
-            return unserialize($this->read());
+            echo substr($response, 0, 400) . "\n\n";
+
+            /** @var \App\TunnelResponse $s */
+            $s = unserialize($response);
+
+            echo "aaaaa\n" . $s->getRequestId() . "\n";
+
+            return $s;
         } catch (\Exception $e) {
-            return false;
+            return new TunnelResponse(str_random(12), new Response(200, [], $e->getMessage()));
         }
     }
 

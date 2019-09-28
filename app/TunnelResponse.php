@@ -2,8 +2,9 @@
 
 namespace App;
 
-use function GuzzleHttp\Psr7\parse_request;
+use function GuzzleHttp\Psr7\parse_response;
 use function GuzzleHttp\Psr7\str;
+use Psr\Http\Message\MessageInterface;
 use Psr\Http\Message\ResponseInterface;
 
 class TunnelResponse
@@ -64,5 +65,21 @@ class TunnelResponse
     public function __toString()
     {
         return serialize($this);
+    }
+
+    public function __sleep()
+    {
+        if ($this->response instanceof MessageInterface) {
+            $this->response = str($this->response);
+        }
+
+        return ['client', 'port', 'requestId', 'response'];
+    }
+
+    public function __wakeup()
+    {
+        if (!empty($this->response)) {
+            $this->response = parse_response($this->response);
+        }
     }
 }

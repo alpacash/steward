@@ -75,7 +75,36 @@ class HttpTunnel
                         );
                     }
 
-                    $request->setResolver($resolve)->setRejecter($reject);
+                    $buffer = $this->bufferpool->create($request);
+
+                    // When we receive a chunk of data, we will send it to the appropriate buffer.
+                    $controller->on('data', function ($chunk) {
+
+                        // =============== ALERT ALERT ALERT ALERT ===========================
+                        // Buffer is alleen voor dit request, maar de data misschien niet...
+                        // We moeten hier zien te achterhalen voor welk request de data is en
+                        // dus op welke buffer die hoort...
+                        $this->bufferpool->chunk($chunk);
+                    });
+
+                    $controller->on('error', function(\Exception $e) use ($reject, $buffer) {
+                        $buffer->clear();
+                        return $reject(new Response(500, [], $e->getMessage()));
+                    });
+
+                    // This response's destination could be anything we asked for,
+                    // thus we have to find out what it is for.
+                    $controller->on('end', function() use ($resolve, $buffer) {
+                        // return $resolver(new Response(200));
+                        echo "end\n";
+                        return $resolve($buffer->tunnelResponse()->getResponse());
+                    });
+
+                    $controller->on('close', function() use ($buffer, $request, $resolve) {
+                        echo "close\n";
+                        // return $resolver(new Response(200));
+                        return $resolve($buffer->tunnelResponse()->getResponse());
+                    });
 
                     // Send the request from the browser to the local host.
                     $controller->write((string)$request);
@@ -137,36 +166,9 @@ class HttpTunnel
             return null;
         }
 
-        $buffer = $this->bufferpool->create($request);
+        $controller->removeAllListeners();
 
-        $controller->on('error', function(\Exception $e) use ($request, $buffer) {
-            $buffer->clear();
-            ${$request->getRejecter()}(new Response(500, [], $e->getMessage()));
-        });
-
-        // When we receive a chunk of data, we will send it to the appropriate buffer.
-        $controller->on('data', function ($chunk) use ($buffer) {
-
-            // =============== ALERT ALERT ALERT ALERT ===========================
-            // Buffer is alleen voor dit request, maar de data misschien niet...
-            // We moeten hier zien te achterhalen voor welk request de data is en
-            // dus op welke buffer die hoort...
-            $buffer->chunk($chunk);
-        });
-
-        // This response's destination could be anything we asked for,
-        // thus we have to find out what it is for.
-        $controller->on('end', function() use ($request, $buffer) {
-
-            $response = $buffer->tunnelResponse();
-            ${$request->getResolver()}($response->getResponse());
-        });
-
-        $controller->on('close', function() use ($buffer, $request) {
-            ${$request->getResolver()}($buffer->tunnelResponse()->getResponse());
-        });
-
-        return $server;
+        return $controller;
     }
 
     /**
