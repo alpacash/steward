@@ -2,6 +2,7 @@
 
 namespace App\Tunnel\Client;
 
+use League\CLImate\CLImate;
 use React\Socket\ConnectionInterface;
 
 class Client
@@ -17,6 +18,11 @@ class Client
     protected $id;
 
     /**
+     * @var \League\CLImate\CLImate
+     */
+    protected $cli;
+
+    /**
      * Client constructor.
      *
      * @param string $id
@@ -26,6 +32,7 @@ class Client
     ) {
         $this->connectionPool = new ConnectionPool();
         $this->id = $id;
+        $this->cli = new CLImate();
     }
 
     /**
@@ -46,8 +53,13 @@ class Client
         do {
             $connection = $this->connectionPool->next();
 
-            sleep(1);
+            if (empty($connection)) {
+                $this->cli->yellow("Warning: running out of connections with {$this->id}");
+                usleep(750);
+            }
         } while (empty($connection));
+
+        $this->cli->green("Going through with connection {$connection->getId()}");
 
         return $connection;
     }

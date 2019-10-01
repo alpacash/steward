@@ -3,6 +3,7 @@
 namespace App\Tunnel\Client;
 
 use Illuminate\Support\Str;
+use League\CLImate\CLImate;
 use React\Socket\ConnectionInterface;
 
 class ConnectionPool
@@ -11,6 +12,19 @@ class ConnectionPool
      * @var \App\Tunnel\Client\Connection[]
      */
     protected $connections;
+
+    /**
+     * @var \League\CLImate\CLImate
+     */
+    protected $cli;
+
+    /**
+     * ConnectionPool constructor.
+     */
+    public function __construct()
+    {
+        $this->cli = new CLImate();
+    }
 
     /**
      * @param \React\Socket\ConnectionInterface $connection
@@ -33,7 +47,14 @@ class ConnectionPool
             $this->close($key);
         });
 
+        $connection->on('error', function(\Exception $e) use ($key) {
+            $this->cli->error($e->getMessage());
+
+            unset($this->connections[$key]);
+        });
+
         $this->connections[$key] = new Connection($key, $connection);
+        $this->cli->comment("Adding new connection {$key}");
 
         return $this->connections[$key];
     }

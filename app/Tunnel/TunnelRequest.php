@@ -2,9 +2,8 @@
 
 namespace App\Tunnel;
 
-use function GuzzleHttp\Psr7\parse_request;
 use function GuzzleHttp\Psr7\str;
-use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Message\RequestInterface;
 
 class TunnelRequest
 {
@@ -19,7 +18,7 @@ class TunnelRequest
     protected $port;
 
     /**
-     * @var \Psr\Http\Message\ServerRequestInterface
+     * @var \Psr\Http\Message\RequestInterface
      */
     protected $request;
 
@@ -31,23 +30,19 @@ class TunnelRequest
     /**
      * TunnelPackage constructor.
      *
-     * @param string                                   $id
-     * @param array                                    $serverParams
-     * @param \Psr\Http\Message\ServerRequestInterface $request
+     * @param string                             $id
+     * @param \Psr\Http\Message\RequestInterface $request
      */
     public function __construct(
         string $id,
-        array $serverParams,
-        ServerRequestInterface $request
+        RequestInterface $request
     ) {
-        $this->client = $serverParams['REMOTE_ADDR'] ?? '';
-        $this->port = $serverParams['REMOTE_PORT'] ?? '';
         $this->request = $request;
         $this->id = md5($id . str($request));
     }
 
     /**
-     * @return \Psr\Http\Message\ServerRequestInterface
+     * @return \Psr\Http\Message\RequestInterface
      */
     public function getRequest()
     {

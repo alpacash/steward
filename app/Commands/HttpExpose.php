@@ -5,11 +5,11 @@ namespace App\Commands;
 use App\Tunnel\TunnelRequest;
 use App\Tunnel\TunnelResponse;
 use GuzzleHttp\Client;
+use function GuzzleHttp\Psr7\parse_request;
 use GuzzleHttp\Psr7\Response;
-use function GuzzleHttp\Psr7\str;
+use Illuminate\Support\Str;
 use LaravelZero\Framework\Commands\Command;
 use Psr\Http\Message\RequestInterface;
-use Psr\Http\Message\ResponseInterface;
 use React\EventLoop\LoopInterface;
 use React\Socket\ConnectionInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -34,6 +34,11 @@ class HttpExpose extends Command
      * @var \React\Socket\ConnectionInterface[]
      */
     protected $connections = [];
+
+    /**
+     * @var bool
+     */
+    protected $failed = false;
 
     /**
      * Execute the console command.
@@ -72,46 +77,55 @@ class HttpExpose extends Command
 
             $this->output->note("Connected to " . $connection->getRemoteAddress());
 
-            $connection->on('data', function ($request) use ($connection) {
+            $connection->on('data', function ($raw) use ($connection, &$buffer) {
 
                 // When we receive data from the socket it is a forwarded http request.
                 // So we will forward this request to our local webserver and then reply with
                 // the webserver's response.
-                $this->proxy(unserialize($request), $connection);
+
+                $this->proxy(parse_request($raw), $connection);
             });
-        })->otherwise(function($exception) {
+        })->otherwise(function() {
+
+            if ($this->failed) {
+                return;
+            }
 
             /** @var \RuntimeException $exception */
-            $this->verbose("\n" . $exception->getMessage());
             $this->output->error("The tunnel seems offline at this moment. Try again later.");
+
+            $this->failed = true;
         });
 
         return $this->connections[$key] = $socket;
     }
 
     /**
-     * @param \App\Tunnel\TunnelRequest         $tunnel
-     * @param \React\Socket\ConnectionInterface $socket
+     * @param \Psr\Http\Message\RequestInterface $request
+     * @param \React\Socket\ConnectionInterface  $socket
      *
      * @throws \GuzzleHttp\Exception\GuzzleException
      */
-    protected function proxy(TunnelRequest $tunnel, ConnectionInterface $socket)
+    protected function proxy(RequestInterface $request, ConnectionInterface $socket)
     {
-        $request = $tunnel->getRequest();
-
-        echo "Request hash:\n" . md5(str($request)) . "\n";
 
         $originalHost = $request->getUri()->getHost();
         $this->output->note("Tunneling request " . $request->getRequestTarget()
             . " => " . $originalHost);
 
-        $request = $request->withUri($request->getUri()->withPort(80)->withHost('127.0.0.1'), true);
         $request = $request->withUri($request->getUri()->withPort(80)->withHost(
-            substr($originalHost, 0, strpos($originalHost, ':') ?: strlen($originalHost))
+            str_replace(':8091', '', $request->getUri()->getHost())
         ));
 
-        /** @var \Psr\Http\Message\ServerRequestInterface $request */
-        $request = $request->withoutHeader('Content-Length');
+        if ($request->getHeader('Referer')) {
+            $request = $request->withHeader('Referer' ,
+                str_replace(':8091', '', $request->getHeader('Referer')));
+        }
+
+        if ($request->getHeader('Origin')) {
+            $request = $request->withHeader('Origin' ,
+                str_replace(':8091', '', $request->getHeader('Origin')));
+        }
 
         $this->output->note("Executing http request to local webserver => {$request->getMethod()} {$request->getUri()}");
 
@@ -124,32 +138,20 @@ class HttpExpose extends Command
             ]);
 
             $this->output->success("Executed http request to local webserver <= {$response->getStatusCode()}");
-
-            $response = new TunnelResponse($tunnel->getId(), $response);
         } catch (\Exception $e) {
             $this->output->error("Failed http request to local webserver...\n" . $e->getMessage());
 
-            $response = new TunnelResponse($tunnel->getId(), new Response(500, [], "Server timeout."));
+            $response = new Response(500, [], "Server timeout.");
         }
 
-        echo str($request);
+
+        echo $response->getStatusCode();
 
         // DIT HIER GAAT HET HEM DOEN
-        $data = serialize($response) . "===stew-data-end===";
+        $data = \GuzzleHttp\Psr7\str(
+            $response->withoutHeader('Transfer-Encoding')
+        ) . "===stew-data-end===";
 
         $socket->write($data);
-    }
-
-    /**
-     * @param string $message
-     * @param bool   $raw
-     */
-    protected function verbose(string $message, bool $raw = false)
-    {
-        if ($this->getOutput()->getVerbosity() < OutputInterface::VERBOSITY_VERBOSE) {
-            return;
-        }
-
-        $raw ? $this->output->write($message) : $this->output->comment($message);
     }
 }

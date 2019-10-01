@@ -31,10 +31,10 @@ class ClientPool
      *
      * @return \App\Tunnel\Client\Client|null
      */
-    public function clientForRequest(TunnelRequest $request)
+    public function clientForRequest(TunnelRequest $request = null)
     {
         foreach ($this->clients ?? [] as $client) {
-            if ($client->ownsDomain($request->getRequest()->getUri()->getHost())) {
+            if (empty($request) || $client->ownsDomain($request->getRequest()->getUri()->getHost())) {
                 return $client;
             }
         }
@@ -44,15 +44,14 @@ class ClientPool
 
     /**
      * @param \App\Tunnel\TunnelRequest $request
-     * @param callable                  $resolve
-     * @param callable                  $reject
      *
      * @return \App\Tunnel\Client\Connection|null
      */
-    public function nextConnectionForRequest(TunnelRequest $request, callable $resolve, callable $reject)
-    {
+    public function nextConnectionForRequest(
+        TunnelRequest $request = null
+    ) {
         if ($client = $this->clientForRequest($request)) {
-            $connection = $client->nextConnection()->callbacks($resolve, $reject);
+            $connection = $client->nextConnection();
 
             return $connection;
         }

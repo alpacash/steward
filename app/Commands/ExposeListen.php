@@ -4,11 +4,9 @@ namespace App\Commands;
 
 use App\Exceptions\TunnelExceptionHandler;
 use LaravelZero\Framework\Commands\Command;
-use Psr\Http\Message\RequestInterface;
 use React\EventLoop\Factory;
 use React\Socket\ConnectionInterface;
 use React\Socket\Server as SocketServer;
-use Symfony\Component\Console\Output\OutputInterface;
 
 class ExposeListen extends Command
 {
@@ -17,7 +15,7 @@ class ExposeListen extends Command
      *
      * @var string
      */
-    protected $signature = 'expose:listen';
+    protected $signature = 'expose:listen {address=0.0.0.0:80}';
 
     /**
      * The description of the command.
@@ -55,33 +53,17 @@ class ExposeListen extends Command
     {
         $loop = Factory::create();
 
-        $tunnel = (new \App\Tunnel\HttpTunnel())->setErrorHandler(
+        $tunnel = (new \App\Tunnel\HttpTunnel(
+            $this->argument('address')
+        ))->setErrorHandler(
             new TunnelExceptionHandler($this->output)
-        )->listen($loop, function(RequestInterface $request) {
-            $this->output->note("Listening to new http request to " . $request->getUri()->getHost());
-        });
+        )->listen($loop);
 
         $socket = new SocketServer("0.0.0.0:8090", $loop);
         $socket->on('connection', function (ConnectionInterface $server) use ($socket, $tunnel) {
-
-            $this->output->note("New connection from {$server->getRemoteAddress()} => "
-                . $server->getLocalAddress());
-
             $tunnel->addServer($server);
         });
 
         $loop->run();
-    }
-
-    /**
-     * @param string $message
-     */
-    protected function verbose(string $message)
-    {
-        if ($this->getOutput()->getVerbosity() < OutputInterface::VERBOSITY_VERBOSE) {
-            return;
-        }
-
-        $this->output->comment($message);
     }
 }

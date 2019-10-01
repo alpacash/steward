@@ -3,10 +3,16 @@
 namespace App\Tunnel;
 
 use App\Tunnel\Client\ClientPool;
+use function GuzzleHttp\Psr7\parse_request;
+use function GuzzleHttp\Psr7\parse_response;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Support\Str;
+use League\CLImate\CLImate;
 use Psr\Http\Message\ServerRequestInterface;
 use React\EventLoop\LoopInterface;
+use React\Http\Middleware\LimitConcurrentRequestsMiddleware;
+use React\Http\Middleware\RequestBodyBufferMiddleware;
+use React\Http\Middleware\RequestBodyParserMiddleware;
 use React\Http\Server as HttpServer;
 use React\Promise\Promise;
 use React\Socket\ConnectionInterface;
@@ -25,57 +31,64 @@ class HttpTunnel
     protected $errorHandler;
 
     /**
-     * HttpTunnel constructor.
+     * @var string
      */
-    public function __construct()
-    {
+    protected $bind;
+
+    /**
+     * @var \League\CLImate\CLImate
+     */
+    protected $cli;
+
+    /**
+     * HttpTunnel constructor.
+     *
+     * @param string $bind
+     */
+    public function __construct(
+        string $bind = '0.0.0.0:80'
+    ) {
         $this->clientpool = new ClientPool();
+        $this->bind = $bind;
+        $this->cli = new CLImate();
     }
 
     /**
      * @param \React\EventLoop\LoopInterface $loop
-     * @param callable|null                  $proceed
+     * @param callable|null                  $before
      *
      * @return $this
      */
-    public function listen(LoopInterface $loop, callable $proceed = null)
+    public function listen(LoopInterface $loop, callable $before = null)
     {
-        $http = new HttpServer(
-            function (ServerRequestInterface $request) use ($proceed) {
+        $http = new SocketServer($this->bind, $loop);
+        $http->on('connection', function (ConnectionInterface $browser) use ($http, $before) {
 
-                if (is_callable($proceed)) {
-                    $proceed($request);
-                }
+            $client = $this->clientpool->nextConnectionForRequest();
 
-                $static = $request->getUri()->withScheme('');
-                $host = (string)$static->withPath('')->withQuery('');
-                $request = new TunnelRequest(
-                    Str::random(20),
-                    $request->getServerParams(),
-                    $request->withHeader('Host', $host)
-                );
-
-                // Wait for the server to send back our web page...
-                return new Promise(function ($resolve, $reject) use ($request) {
-
-                    $connection = $this->clientpool->nextConnectionForRequest($request, $resolve, $reject);
-
-                    if (empty($connection)) {
-                        return $resolve(
-                            new Response(500, [], "There is no connection available for this request.")
-                        );
-                    }
-
-                    // Send data to this specific connection
-                    // and release it when we finish
-                    $connection->write((string)$request);
-                });
+            if (empty($client)) {
+                $browser->end(\GuzzleHttp\Psr7\str(
+                    new Response(500, [], "There is no host available for this request.")
+                ));
             }
-        );
 
-        $http->on('error', $this->errorHandler);
+            $client->resolves(function ($response) use ($browser, $client) {
+                $browser->end($response);
+                $client->release();
+            });
 
-        $http->listen(new SocketServer('0.0.0.0:8091', $loop));
+            if (is_callable($before)) {
+                $before();
+            }
+
+            $browser->on('data', function ($chunk) use ($client) {
+                $this->cli->comment($chunk);
+
+                // When we receive a http request, we send it to the client
+                // and wait for a reply to pass it over to the browser.
+                $client->write($chunk);
+            });
+        });
 
         return $this;
     }

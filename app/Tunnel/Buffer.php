@@ -29,7 +29,7 @@ class Buffer
      */
     public function chunk(string $data)
     {
-        $this->buffer .= str_replace('===stew-data-end===', '', $data);
+        $this->buffer .= $data;
 
         return $this;
     }
@@ -49,7 +49,7 @@ class Buffer
      *
      * @return string
      */
-    public function read($clear = false)
+    public function read($clear = true)
     {
         $b = $this->buffer;
 
@@ -57,24 +57,7 @@ class Buffer
             $this->clear();
         }
 
-        return $b;
-    }
-
-    /**
-     * @return \App\Tunnel\TunnelResponse
-     */
-    public function tunnelResponse()
-    {
-        try {
-            $response = $this->read();
-
-            /** @var \App\Tunnel\TunnelResponse $s */
-            $s = unserialize($response);
-
-            return $s;
-        } catch (\Exception $e) {
-            return new TunnelResponse(str_random(12), new Response(200, [], $response . " " . $e->getMessage()));
-        }
+        return str_replace('===stew-data-end===', '', $b);
     }
 
     /**

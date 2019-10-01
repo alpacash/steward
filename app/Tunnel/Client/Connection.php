@@ -24,7 +24,7 @@ class Connection
     protected $busy = false;
 
     /**
-     * @var \App\Buffer
+     * @var \App\Tunnel\Buffer
      */
     protected $buffer;
 
@@ -50,19 +50,15 @@ class Connection
     ) {
         $socket->removeAllListeners();
 
-        // When we receive a chunk of data, we will send it to the appropriate buffer.
         $socket->on('data', function ($chunk) {
-            // =============== ALERT ALERT ALERT ALERT ===========================
-            // Buffer is alleen voor dit request, maar de data misschien niet...
-            // We moeten hier zien te achterhalen voor welk request de data is en
-            // dus op welke buffer die hoort...
 
             $this->buffer->chunk($chunk);
 
             if (Str::endsWith($chunk, '===stew-data-end===')) {
 
-                $resolve = $this->resolve;
-                $resolve($this->buffer->tunnelResponse()->getResponse());
+                if (is_callable($this->resolve)) {
+                    call_user_func_array($this->resolve, [$this->buffer->read()]);
+                }
 
                 $this->buffer->clear();
                 $this->release();
@@ -79,6 +75,7 @@ class Connection
      */
     public function release()
     {
+        $this->getSocket()->removeAllListeners();
         $this->busy = false;
 
         return $this;
@@ -95,12 +92,17 @@ class Connection
     }
 
     /**
-     * @param string $data
+     * @param string   $data
+     * @param callable $resolve
      *
      * @return \App\Tunnel\Client\Connection
      */
-    public function write(string $data)
+    public function write(string $data, callable $resolve = null)
     {
+        if (is_callable($resolve)) {
+            $this->resolve = $resolve;
+        }
+
         $this->getSocket()->write($data);
 
         return $this;
@@ -132,13 +134,23 @@ class Connection
 
     /**
      * @param callable $resolve
+     *
+     * @return self
+     */
+    public function resolves(callable $resolve)
+    {
+        $this->resolve = $resolve;
+
+        return $this;
+    }
+
+    /**
      * @param callable $reject
      *
      * @return self
      */
-    public function callbacks(callable $resolve, callable $reject)
+    public function rejects(callable $reject)
     {
-        $this->resolve = $resolve;
         $this->reject = $reject;
 
         return $this;
