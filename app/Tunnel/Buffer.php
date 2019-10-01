@@ -2,9 +2,6 @@
 
 namespace App\Tunnel;
 
-use App\Tunnel\TunnelResponse;
-use GuzzleHttp\Psr7\Response;
-
 class Buffer
 {
     /**

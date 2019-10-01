@@ -2,17 +2,13 @@
 
 namespace App\Commands;
 
-use App\Tunnel\TunnelRequest;
-use App\Tunnel\TunnelResponse;
 use GuzzleHttp\Client;
 use function GuzzleHttp\Psr7\parse_request;
 use GuzzleHttp\Psr7\Response;
-use Illuminate\Support\Str;
 use LaravelZero\Framework\Commands\Command;
 use Psr\Http\Message\RequestInterface;
 use React\EventLoop\LoopInterface;
 use React\Socket\ConnectionInterface;
-use Symfony\Component\Console\Output\OutputInterface;
 
 class HttpExpose extends Command
 {
