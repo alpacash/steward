@@ -66,7 +66,7 @@ class HttpExpose extends Command
     {
         $socket = new \React\Socket\Connector($loop, ['timeout' => 10]);
 
-        $listen = ($this->option('localhost') ? '127.0.0.1' : 'stew.sh') . ":8090";
+        $listen = ($this->option('localhost') ? '127.0.0.1' : 'tunnel.stew.sh') . ":8090";
 
         // Connect to the stew.sh proxy
         $socket->connect($listen)->then(function (ConnectionInterface $connection) use ($loop) {
