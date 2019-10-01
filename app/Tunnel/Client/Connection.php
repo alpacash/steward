@@ -4,6 +4,7 @@ namespace App\Tunnel\Client;
 
 use App\Tunnel\Buffer;
 use Illuminate\Support\Str;
+use League\CLImate\CLImate;
 use React\Socket\ConnectionInterface;
 
 class Connection
@@ -39,6 +40,11 @@ class Connection
     protected $resolve;
 
     /**
+     * @var \League\CLImate\CLImate
+     */
+    protected $cli;
+
+    /**
      * Connection constructor.
      *
      * @param string              $id
@@ -48,7 +54,7 @@ class Connection
         string $id,
         ConnectionInterface $socket
     ) {
-        $socket->removeAllListeners();
+        $this->cli = new CLImate();
 
         $socket->on('data', function ($chunk) {
 
@@ -75,8 +81,9 @@ class Connection
      */
     public function release()
     {
-        $this->getSocket()->removeAllListeners();
         $this->busy = false;
+
+        $this->cli->comment("Connection {$this->getId()} was released...");
 
         return $this;
     }
@@ -92,17 +99,12 @@ class Connection
     }
 
     /**
-     * @param string   $data
-     * @param callable $resolve
+     * @param string $data
      *
      * @return \App\Tunnel\Client\Connection
      */
-    public function write(string $data, callable $resolve = null)
+    public function write(string $data)
     {
-        if (is_callable($resolve)) {
-            $this->resolve = $resolve;
-        }
-
         $this->getSocket()->write($data);
 
         return $this;

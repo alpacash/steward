@@ -40,7 +40,7 @@ class ConnectionPool
         // This response's destination could be anything we asked for,
         // thus we have to find out what it is for.
         $connection->on('end', function() use ($key) {
-            $this->release($key);
+            $this->close($key);
         });
 
         $connection->on('close', function() use ($key) {

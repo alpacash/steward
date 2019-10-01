@@ -73,8 +73,12 @@ class HttpTunnel
             }
 
             $client->resolves(function ($response) use ($browser, $client) {
+
+                $this->cli->comment("Returning response to the browser...");
+
                 $browser->end($response);
-                $client->release();
+
+                $this->cli->green("Returned response to the browser...");
             });
 
             if (is_callable($before)) {
@@ -82,11 +86,12 @@ class HttpTunnel
             }
 
             $browser->on('data', function ($chunk) use ($client) {
-                $this->cli->comment($chunk);
 
                 // When we receive a http request, we send it to the client
                 // and wait for a reply to pass it over to the browser.
                 $client->write($chunk);
+
+                $this->cli->green("Wrote the browser request to the socket...");
             });
         });
 

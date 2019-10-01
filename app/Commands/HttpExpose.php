@@ -117,6 +117,10 @@ class HttpExpose extends Command
             str_replace(':8091', '', $request->getUri()->getHost())
         ));
 
+        $request = $request->withUri($request->getUri()->withPort(80)->withHost(
+            str_replace($request->getUri()->getHost(), '127.0.0.1', $request->getUri()->getHost())
+        ), true);
+
         if ($request->getHeader('Referer')) {
             $request = $request->withHeader('Referer' ,
                 str_replace(':8091', '', $request->getHeader('Referer')));
@@ -137,15 +141,12 @@ class HttpExpose extends Command
                 'allow_redirects' => false // need this
             ]);
 
-            $this->output->success("Executed http request to local webserver <= {$response->getStatusCode()}");
+            $this->output->success("<= Executed http request to local webserver {$response->getStatusCode()}");
         } catch (\Exception $e) {
             $this->output->error("Failed http request to local webserver...\n" . $e->getMessage());
 
             $response = new Response(500, [], "Server timeout.");
         }
-
-
-        echo $response->getStatusCode();
 
         // DIT HIER GAAT HET HEM DOEN
         $data = \GuzzleHttp\Psr7\str(
@@ -153,5 +154,7 @@ class HttpExpose extends Command
         ) . "===stew-data-end===";
 
         $socket->write($data);
+
+        $this->output->success("=> Successfully wrote response {$response->getStatusCode()} to the socket...");
     }
 }
