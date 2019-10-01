@@ -136,7 +136,7 @@ class HttpExpose extends Command
         try {
             $response = (new Client())->send($request, [
                 'http_errors' => false,
-                'timeout' => 10,
+                'timeout' => 60,
                 'synchronous' => true,
                 'allow_redirects' => false // need this
             ]);
