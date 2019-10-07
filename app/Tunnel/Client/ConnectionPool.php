@@ -99,4 +99,19 @@ class ConnectionPool
 
         return null;
     }
+
+    /**
+     * @return self
+     */
+    public function prune()
+    {
+        foreach ($this->connections as $connection) {
+            // Release the connection if the timeout was exceeded
+            if ($connection->timedOut()) {
+                $connection->release();
+            }
+        }
+
+        return $this;
+    }
 }

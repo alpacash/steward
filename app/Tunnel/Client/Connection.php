@@ -22,7 +22,7 @@ class Connection
     /**
      * @var bool
      */
-    protected $busy = false;
+    protected $busySince = false;
 
     /**
      * @var \App\Tunnel\Buffer
@@ -45,14 +45,21 @@ class Connection
     protected $cli;
 
     /**
+     * @var string
+     */
+    protected $timeout;
+
+    /**
      * Connection constructor.
      *
      * @param string              $id
      * @param ConnectionInterface $socket
+     * @param int                 $timeout
      */
     public function __construct(
         string $id,
-        ConnectionInterface $socket
+        ConnectionInterface $socket,
+        int $timeout = 60
     ) {
         $this->cli = new CLImate();
 
@@ -62,18 +69,14 @@ class Connection
 
             if (Str::endsWith($chunk, '===stew-data-end===')) {
 
-                if (is_callable($this->resolve)) {
-                    call_user_func_array($this->resolve, [$this->buffer->read()]);
-                }
-
-                $this->buffer->clear();
-                $this->release();
+                $this->resolve();
             }
         });
 
         $this->socket = $socket;
         $this->id = $id;
         $this->buffer = new Buffer();
+        $this->timeout = $timeout;
     }
 
     /**
@@ -81,7 +84,9 @@ class Connection
      */
     public function release()
     {
-        $this->busy = false;
+        $this->busySince = false;
+
+        $this->buffer->clear();
 
         $this->cli->comment("Connection {$this->getId()} was released...");
 
@@ -93,7 +98,7 @@ class Connection
      */
     public function occupy()
     {
-        $this->busy = true;
+        $this->busySince = time();
 
         return $this;
     }
@@ -115,7 +120,8 @@ class Connection
      */
     public function isBusy()
     {
-        return $this->busy || ! $this->getSocket()->isWritable();
+        return $this->busySince !== false
+             || ! $this->getSocket()->isWritable();
     }
 
     /**
@@ -154,6 +160,41 @@ class Connection
     public function rejects(callable $reject)
     {
         $this->reject = $reject;
+
+        return $this;
+    }
+
+    /**
+     * @return bool
+     */
+    public function timedOut()
+    {
+        return $this->busySince !== false
+            && time() - $this->busySince > $this->timeout;
+    }
+
+    /**
+     * @return self
+     */
+    protected function resolve()
+    {
+        if (is_callable($this->resolve)) {
+            call_user_func_array($this->resolve, [$this->buffer->read()]);
+        }
+
+        $this->release();
+
+        return $this;
+    }
+
+    /**
+     * @return self
+     */
+    protected function reject()
+    {
+        if (is_callable($this->reject)) {
+            call_user_func_array($this->reject, [$this->buffer->read()]);
+        }
 
         return $this;
     }
