@@ -110,11 +110,11 @@ class HttpExpose extends Command
             . " => " . $originalHost);
 
         $request = $request->withUri($request->getUri()->withPort(80)->withHost(
-            str_replace(':8091', '', $request->getUri()->getHost())
+            str_replace(':8091', '', $originalHost)
         ));
 
         $request = $request->withUri($request->getUri()->withPort(80)->withHost(
-            str_replace($request->getUri()->getHost(), '127.0.0.1', $request->getUri()->getHost())
+            str_replace($originalHost, '127.0.0.1', $originalHost)
         ), true);
 
         if ($request->getHeader('Referer')) {
