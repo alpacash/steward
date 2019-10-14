@@ -6,3 +6,5 @@ curl -s https://stew.sh/steward > /usr/local/bin/stew
 chmod +x /usr/local/bin/stew
 
 rm -f /usr/local/bin/stew-old
+
+echo "Done! $(/usr/local/bin/stew -V)"
