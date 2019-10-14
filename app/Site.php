@@ -40,11 +40,13 @@ class Site
     }
 
     /**
+     * @param bool $secure
+     *
      * @return string
      */
-    public function domainWithPort()
+    public function domainWithPort(bool $secure = false)
     {
-        return $this->domain() . ":80";
+        return $this->domain() . ($secure ? ':443' : ':80');
     }
 
     /**

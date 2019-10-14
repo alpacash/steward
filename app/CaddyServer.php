@@ -81,10 +81,16 @@ class CaddyServer implements ServerContract
     }
 
     /**
+     * @param string|null $domain
+     *
      * @return string
      */
-    public function caddyFile(): string
+    public function caddyFile(string $domain = null): string
     {
+        if (! empty($domain)) {
+            return StewardConfig::caddyConfDir() . "/{$domain}.conf";
+        }
+
         return $this->caddyFile;
     }
 

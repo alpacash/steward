@@ -21,11 +21,21 @@ class StewardConfig
     }
 
     /**
+     * @param string|null $path
+     *
      * @return string
      */
-    public static function caddyHome()
+    public static function caddyHome(string $path = null)
     {
-        return self::home('.caddy');
+        return self::home('.caddy' . ($path ? '/' . $path : ''));
+    }
+
+    /**
+     * @return string
+     */
+    public static function caddyConfDir()
+    {
+        return self::caddyHome('conf.d');
     }
 
     /**
