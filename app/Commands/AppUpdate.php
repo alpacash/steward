@@ -54,6 +54,6 @@ class AppUpdate extends Command
         $this->output->writeln("Downloading install script...");
         Shell::cmd('curl -s --progress-bar https://stew.sh/install | bash', $this->output);
 
-        return 0;
+        exit(0);
     }
 }
