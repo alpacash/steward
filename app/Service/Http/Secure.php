@@ -156,7 +156,7 @@ class Secure
      */
     protected function trustCertificate(string $crtPath)
     {
-        $this->cli->yellow("Sudo password required to trust self-signed certificate...");
+        $this->cli->yellow("[WARNING] Sudo password required to trust self-signed certificate...");
 
         Shell::cmd(sprintf(
             'sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain %s',
@@ -177,7 +177,7 @@ class Secure
             $this->cli->comment("Deleted file {$this->domain}.{$extension}");
         }
 
-        $this->cli->yellow("Sudo password required to untrust certiticate...");
+        $this->cli->yellow("[WARNING] Sudo password required to untrust certiticate...");
 
         Shell::cmd(sprintf('sudo security delete-certificate -c "%s" -t', $this->domain));
 
