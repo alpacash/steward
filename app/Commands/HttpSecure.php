@@ -2,6 +2,7 @@
 
 namespace App\Commands;
 
+use App\CaddyServer;
 use App\Service\Http\Secure;
 use LaravelZero\Framework\Commands\Command;
 
@@ -29,5 +30,10 @@ class HttpSecure extends Command
     public function handle()
     {
         Secure::domain($this->argument('domain'))->secure();
+
+        $this->output->note("Restarting http server...");
+        $http = CaddyServer::instance();
+        $http->config()->save();
+        $http->restart();
     }
 }

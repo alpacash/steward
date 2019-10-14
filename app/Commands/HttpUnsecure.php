@@ -2,7 +2,9 @@
 
 namespace App\Commands;
 
+use App\CaddyServer;
 use App\Service\Http\Secure;
+use App\Stack;
 use LaravelZero\Framework\Commands\Command;
 
 class HttpUnsecure extends Command
@@ -37,6 +39,11 @@ class HttpUnsecure extends Command
         }
 
         $domainSecurity->unsecure();
+
+        $this->output->note("Restarting http server...");
+        $http = CaddyServer::instance();
+        $http->config()->save();
+        $http->restart();
 
         $this->output->success("The domain was unsecured successfully. All files were removed.");
     }

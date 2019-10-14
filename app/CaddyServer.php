@@ -54,6 +54,14 @@ class CaddyServer implements ServerContract
     }
 
     /**
+     * @return \App\CaddyServer
+     */
+    public static function instance()
+    {
+        return new static();
+    }
+
+    /**
      * @return self
      */
     public function restart()
