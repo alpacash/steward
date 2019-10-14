@@ -55,7 +55,7 @@ class Client
 
             if (empty($connection)) {
                 $this->cli->yellow("Warning: running out of connections with {$this->id}");
-                usleep(550 * 10000);
+                sleep(1);
 
                 $this->connectionPool->prune();
             }
