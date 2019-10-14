@@ -2,7 +2,7 @@
 
 namespace App\Commands;
 
-class RestartCaddyCommand extends StackCommand
+class HttpRestart extends StackCommand
 {
     /**
      * The signature of the command.
