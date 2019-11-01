@@ -1,0 +1,13 @@
+#!/bin/bash
+
+BIN_PATH="/usr/local/bin";
+
+rm -f ${BIN_PATH}/stew
+
+echo "Downloading latest build..."
+curl -s https://stew.sh/steward > /usr/local/bin/stew
+
+chown $(whoami):$(id -gn) ${BIN_PATH}/stew
+chmod +x ${BIN_PATH}/stew
+
+echo "Done! $(/usr/local/bin/stew -V)"
