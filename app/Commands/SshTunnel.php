@@ -14,7 +14,7 @@ class SshTunnel extends Command
      * @var string
      */
     protected $signature = 'ssh:tunnel {connection : E.g. sshuser@yourserver.com} "
-        . "{--p|remote-port=3306} {--l|local-port=32000} {--P|ssh-port=22}';
+        . "{--p|ports=32000:3306} {--P|ssh-port=22}';
 
     /**
      * The description of the command.
@@ -31,9 +31,8 @@ class SshTunnel extends Command
     public function handle()
     {
         $connection = $this->argument('connection');
-        $remotePort = $this->option('remote-port');
-        $localPort = $this->option('local-port');
         $sshPort = $this->option('ssh-port');
+        list ($localPort, $remotePort) = explode(":", $this->option('ports')) + [32000, 3306];
 
         $this->output->success("Starting tunnel 127.0.0.1:{$localPort} => {$connection}:{$remotePort}");
 
