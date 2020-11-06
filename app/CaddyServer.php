@@ -67,13 +67,12 @@ class CaddyServer implements ServerContract
     public function restart()
     {
         $this->stop();
-        sleep(2);
 
         $ulimit = 'ulimit -n 8192';
         $chwd = "cd $this->home";
-        $startCaddy = "{$this->bin} -conf=\"$this->caddyFile\" -pidfile=\"$this->pidFile\" -log=\"$this->logFile\"";
+        $startCaddy = "{$this->bin} run -config \"$this->caddyFile\" -pidfile \"$this->pidFile\"";
 
-        Shell::cmd("tmux new -d -s caddy '{$ulimit} && {$chwd} && {$startCaddy}'");
+        Shell::cmd("tmux new -d -s caddy '{$ulimit} && {$chwd} && {$startCaddy}' && read");
 
         return $this;
     }

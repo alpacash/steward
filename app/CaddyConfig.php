@@ -69,12 +69,7 @@ class CaddyConfig implements ConfigContract
         $security = Secure::domain($site->domain());
         $isSecure = $security->isSecure();
 
-        $domains = $site->domainWithPort(false);
-        if ($isSecure) {
-            $domains .= ", " . $site->domainWithPort(true);
-        }
-
-        $conf = str_replace('%DOMAIN%', $domains, $stub);
+        $conf = str_replace('%DOMAIN%', $site->domainWithPort($isSecure), $stub);
 
         $conf = str_replace('%DOCROOT%', $site->root(), $conf);
         $conf = str_replace('%ERROR_LOGFILE%', $logfile, $conf);
