@@ -8,7 +8,7 @@ use App\Exceptions\InvalidServerVersionException;
 
 class PhpServer implements ServerContract
 {
-    const PHP_VERSIONS = ['7.0', '7.1', '7.2', '7.3'];
+    const PHP_VERSIONS = ['7.0', '7.1', '7.2', '7.3', '7.4'];
 
     /**
      * @var string
@@ -111,7 +111,7 @@ class PhpServer implements ServerContract
 
         $this->stop();
 
-        $link = Shell::cmd("brew unlink php@{$this->shortVersion()} && brew link php@$version --force");
+        $link = Shell::cmd("brew link php@$version --overwrite --force");
         if ($link > 0) {
             throw new InvalidServerVersionException($this, $version);
         }
