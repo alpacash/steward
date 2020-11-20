@@ -111,7 +111,20 @@ class PhpServer implements ServerContract
 
         $this->stop();
 
-        $link = Shell::cmd("brew link php@$version --overwrite --force");
+        $currentPhpBrewKey = $this->shortVersion() == self::PHP_VERSIONS[array_key_last(self::PHP_VERSIONS)]
+            ? "php"
+            : "php@{$version}";
+
+        $newPhpBrewKey = $version == self::PHP_VERSIONS[array_key_last(self::PHP_VERSIONS)]
+            ? "php"
+            : "php@{$version}";
+
+        Shell::cmd("brew services stop $currentPhpBrewKey");
+        Shell::cmd("brew services start $newPhpBrewKey");
+        Shell::cmd("brew unlink $currentPhpBrewKey --overwrite --force");
+
+        $link = Shell::cmd("brew link $newPhpBrewKey --overwrite --force");
+
         if ($link > 0) {
             throw new InvalidServerVersionException($this, $version);
         }
