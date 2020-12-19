@@ -114,7 +114,7 @@ class CaddyServer implements ServerContract
      */
     public function version(): string
     {
-        return trim(shell_exec("{$this->bin} -version"));
+        return substr(trim(explode(" ", shell_exec("{$this->bin} version"))[0]), 1);
     }
 
     /**
