@@ -8,8 +8,6 @@ use App\Exceptions\InvalidServerVersionException;
 
 class PhpServer implements ServerContract
 {
-    const PHP_VERSIONS = ['7.0', '7.1', '7.2', '7.3', '7.4'];
-
     /**
      * @var string
      */
@@ -43,9 +41,13 @@ class PhpServer implements ServerContract
     /**
      * @return string
      */
-    public function shortVersion()
+    public function shortVersion(): ?string
     {
-        list ($major, $minor) = explode(".", $this->version()) + ['7', '2'];
+        [$major, $minor] = explode(".", $this->version()) + [null, null];
+
+        if (empty($major) || empty($minor)) {
+            return null;
+        }
 
         return "{$major}.{$minor}";
     }
@@ -61,11 +63,25 @@ class PhpServer implements ServerContract
     }
 
     /**
+     * @param string|null $version
+     *
+     * @return string|null
+     */
+    public function brewTag(?string $version = null): string
+    {
+        if ($version === null) {
+            $version = $this->shortVersion();
+        }
+
+        return $version !== 'latest' ? "php@{$version}" : 'php';
+    }
+
+    /**
      * @return self
      */
     public function stop()
     {
-        Shell::cmd("brew services stop php@{$this->shortVersion()}");
+        Shell::cmd("brew services stop {$this->brewTag()}");
 
         return $this;
     }
@@ -75,7 +91,7 @@ class PhpServer implements ServerContract
      */
     public function start()
     {
-        Shell::cmd("brew services start php@{$this->shortVersion()}");
+        Shell::cmd("brew services start {$this->brewTag()}");
 
         return $this;
     }
@@ -105,29 +121,22 @@ class PhpServer implements ServerContract
      */
     public function useVersion(string $version)
     {
-        if (!in_array($version, self::PHP_VERSIONS)) {
+        if ($version !== 'latest' && !preg_match('/[578]\.[\d]/', $version)) {
             throw new InvalidServerVersionException($this, $version);
         }
 
         $this->stop();
 
-        $currentPhpBrewKey = $this->shortVersion() == self::PHP_VERSIONS[array_key_last(self::PHP_VERSIONS)]
-            ? "php"
-            : "php@{$version}";
+        $newPhpBrewKey = $this->brewTag($version);
 
-        $newPhpBrewKey = $version == self::PHP_VERSIONS[array_key_last(self::PHP_VERSIONS)]
-            ? "php"
-            : "php@{$version}";
+        Shell::cmd('brew services stop "{php,php@*}"');
+        Shell::cmd('brew unlink "{php,php@*}"');
 
-        Shell::cmd("brew services stop $currentPhpBrewKey");
-        Shell::cmd("brew services start $newPhpBrewKey");
-        Shell::cmd("brew unlink $currentPhpBrewKey --overwrite --force");
-
-        $link = Shell::cmd("brew link $newPhpBrewKey --overwrite --force");
-
-        if ($link > 0) {
+        if ( Shell::cmd("brew services start $newPhpBrewKey") > 0) {
             throw new InvalidServerVersionException($this, $version);
         }
+
+        Shell::cmd("brew link $newPhpBrewKey --overwrite --force");
 
         $this->start();
 
